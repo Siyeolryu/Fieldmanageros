@@ -1,0 +1,126 @@
+-- ════════════════════════════════════════
+-- Realtime Subscription Setup
+-- 실시간 데이터 구독 설정
+-- ════════════════════════════════════════
+
+-- ════════ Realtime Publication에 테이블 추가 ════════
+-- Supabase는 기본적으로 supabase_realtime publication을 생성
+-- 여기에 실시간 구독할 테이블을 추가
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.attendance;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.workers;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.sites;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.payroll;
+
+-- ════════════════════════════════════════
+-- Realtime 설정 완료
+--
+-- 클라이언트에서 실시간 구독 예시:
+--
+-- JavaScript/TypeScript:
+-- ```typescript
+-- import { createClient } from '@supabase/supabase-js'
+--
+-- const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+--
+-- // 출근 기록 실시간 구독
+-- const attendanceChannel = supabase
+--   .channel('attendance-changes')
+--   .on(
+--     'postgres_changes',
+--     {
+--       event: '*', // INSERT, UPDATE, DELETE 모두
+--       schema: 'public',
+--       table: 'attendance',
+--       filter: `site_id=eq.${siteId}` // 특정 현장만
+--     },
+--     (payload) => {
+--       console.log('출근 기록 변경:', payload)
+--       // UI 업데이트
+--     }
+--   )
+--   .subscribe()
+--
+-- // 근로자 변경 실시간 구독
+-- const workersChannel = supabase
+--   .channel('workers-changes')
+--   .on(
+--     'postgres_changes',
+--     {
+--       event: 'INSERT',
+--       schema: 'public',
+--       table: 'workers'
+--     },
+--     (payload) => {
+--       console.log('새 근로자 추가:', payload.new)
+--     }
+--   )
+--   .subscribe()
+--
+-- // 구독 해제
+-- attendanceChannel.unsubscribe()
+-- workersChannel.unsubscribe()
+-- ```
+--
+-- React Hook 예시:
+-- ```typescript
+-- import { useEffect, useState } from 'react'
+-- import { supabase } from './supabaseClient'
+--
+-- function useRealtimeAttendance(siteId: string) {
+--   const [attendance, setAttendance] = useState([])
+--
+--   useEffect(() => {
+--     // 초기 데이터 로드
+--     const loadAttendance = async () => {
+--       const { data } = await supabase
+--         .from('attendance')
+--         .select('*')
+--         .eq('site_id', siteId)
+--       setAttendance(data || [])
+--     }
+--     loadAttendance()
+--
+--     // 실시간 구독
+--     const channel = supabase
+--       .channel(`attendance-${siteId}`)
+--       .on(
+--         'postgres_changes',
+--         {
+--           event: '*',
+--           schema: 'public',
+--           table: 'attendance',
+--           filter: `site_id=eq.${siteId}`
+--         },
+--         (payload) => {
+--           if (payload.eventType === 'INSERT') {
+--             setAttendance(prev => [...prev, payload.new])
+--           } else if (payload.eventType === 'UPDATE') {
+--             setAttendance(prev =>
+--               prev.map(item =>
+--                 item.id === payload.new.id ? payload.new : item
+--               )
+--             )
+--           } else if (payload.eventType === 'DELETE') {
+--             setAttendance(prev =>
+--               prev.filter(item => item.id !== payload.old.id)
+--             )
+--           }
+--         }
+--       )
+--       .subscribe()
+--
+--     return () => {
+--       channel.unsubscribe()
+--     }
+--   }, [siteId])
+--
+--   return attendance
+-- }
+-- ```
+--
+-- 주요 사용 사례:
+-- 1. 여러 관리자가 동시에 출근 기록 입력 → 실시간 반영
+-- 2. 근로자 추가/수정 → 즉시 목록 업데이트
+-- 3. 급여 명세서 생성 → 실시간 알림
+-- ════════════════════════════════════════

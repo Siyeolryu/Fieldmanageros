@@ -1,0 +1,158 @@
+// Prisma Schema for 노무Pro
+// Supabase PostgreSQL database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ════════════════════════════════════════
+// Profiles (사용자 프로필)
+// ════════════════════════════════════════
+
+model Profile {
+  id        String   @id @db.Uuid
+  email     String   @unique
+  fullName  String?  @map("full_name")
+  role      String   @default("manager") // admin, manager, viewer
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  companies Company[]
+
+  @@map("profiles")
+}
+
+// ════════════════════════════════════════
+// Companies (건설사)
+// ════════════════════════════════════════
+
+model Company {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name           String
+  businessNumber String?  @map("business_number")
+  phone          String?
+  address        String?
+  ownerId        String   @map("owner_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  owner Profile @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sites Site[]
+
+  @@map("companies")
+}
+
+// ════════════════════════════════════════
+// Sites (현장/프로젝트)
+// ════════════════════════════════════════
+
+model Site {
+  id        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  companyId String    @map("company_id") @db.Uuid
+  name      String
+  location  String?
+  startDate DateTime? @map("start_date") @db.Date
+  endDate   DateTime? @map("end_date") @db.Date
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  company    Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workers    Worker[]
+  attendance Attendance[]
+  payroll    Payroll[]
+
+  @@map("sites")
+}
+
+// ════════════════════════════════════════
+// Workers (근로자)
+// ════════════════════════════════════════
+
+model Worker {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  siteId      String   @map("site_id") @db.Uuid
+  name        String
+  phone       String?
+  idNumber    String?  @map("id_number") // 주민등록번호 (암호화 권장)
+  bankName    String?  @map("bank_name")
+  bankAccount String?  @map("bank_account")
+  hourlyRate  Int      @map("hourly_rate") // 시급 (원)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  site       Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  attendance Attendance[]
+  payroll    Payroll[]
+
+  @@map("workers")
+}
+
+// ════════════════════════════════════════
+// Attendance (출근 기록)
+// ════════════════════════════════════════
+
+model Attendance {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  workerId        String   @map("worker_id") @db.Uuid
+  siteId          String   @map("site_id") @db.Uuid
+  date            DateTime @db.Date
+  hoursWorked     Decimal  @map("hours_worked") @db.Decimal(4, 1)
+  isWeeklyHoliday Boolean  @default(false) @map("is_weekly_holiday")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([workerId, siteId, date])
+  @@map("attendance")
+}
+
+// ════════════════════════════════════════
+// Payroll (급여 명세)
+// ════════════════════════════════════════
+
+model Payroll {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  workerId           String    @map("worker_id") @db.Uuid
+  siteId             String    @map("site_id") @db.Uuid
+  year               Int
+  month              Int
+  totalWorkDays      Int?      @map("total_work_days")
+  totalHours         Decimal?  @map("total_hours") @db.Decimal(6, 1)
+  basePay            Int?      @map("base_pay")
+  weeklyHolidayPay   Int?      @map("weekly_holiday_pay")
+  overtimePay        Int?      @map("overtime_pay")
+  totalPay           Int?      @map("total_pay")
+  healthInsurance    Int?      @map("health_insurance")
+  pensionInsurance   Int?      @map("pension_insurance")
+  employmentInsurance Int?     @map("employment_insurance")
+  incomeTax          Int?      @map("income_tax")
+  totalDeduction     Int?      @map("total_deduction")
+  netPay             Int?      @map("net_pay")
+  paidAt             DateTime? @map("paid_at") @db.Timestamptz
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([workerId, siteId, year, month])
+  @@map("payroll")
+}

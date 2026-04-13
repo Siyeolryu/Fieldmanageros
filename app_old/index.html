@@ -1,0 +1,2034 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>프로젝트 출근 관리 — Field Manager OS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{ -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+    body { font-family:'Noto Sans KR',sans-serif; font-size:16px; background:#f5f4f0; }
+
+    /* ── 달력 ── */
+    .cal-cell { min-height:52px; cursor:pointer; border-radius:12px; transition:background .12s; user-select:none; touch-action:none; }
+    .cal-cell:active { transform:scale(0.93); }
+    .cal-cell.today   { outline:2.5px solid #f97316; outline-offset:-2px; }
+    .cal-cell.has-att { background:#dcfce7; }
+    .cal-cell.selected { background:#ede9fe; outline:2.5px solid #7c3aed; outline-offset:-2px; }
+    .cal-cell.other-month { opacity:.35; }
+    .day-sun { color:#ef4444; }
+    .day-sat { color:#3b82f6; }
+
+    /* ── 바텀 시트 ── */
+    .sheet-overlay { background:rgba(0,0,0,.45); backdrop-filter:blur(3px); }
+    .bottom-sheet {
+      transform:translateY(100%);
+      transition:transform .28s cubic-bezier(.32,.72,0,1);
+      max-height:88vh; overflow-y:auto;
+    }
+    .bottom-sheet.open { transform:translateY(0); }
+
+    /* ── 일괄 처리 플로팅 바 ── */
+    .bulk-bar { transform:translateY(120%); transition:transform .22s ease; }
+    .bulk-bar.show { transform:translateY(0); }
+
+    /* ── 근로자 카드 ── */
+    .worker-toggle { transition:background .14s, transform .08s; }
+    .worker-toggle:active { transform:scale(.97); }
+
+    .modal-bg { backdrop-filter:blur(3px); }
+
+    /* ── 명세서 스타일 ── */
+    #report-capture-area { background: white; padding: 24px; border-radius: 16px; }
+    .report-table th { padding: 8px 4px; border-bottom: 1px solid #eee; text-align: left; font-size: 14px; color: #666; }
+    .report-table td { padding: 12px 4px; border-bottom: 1px solid #f9f9f9; font-size: 16px; font-weight: 600; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- ════════ HEADER ════════ -->
+<header class="bg-orange-500 text-white shadow-xl sticky top-0 z-30">
+  <div class="max-w-lg mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <div class="shrink-0">
+      <div class="flex items-center gap-1.5 mb-0.5">
+        <p class="text-[10px] font-bold tracking-widest opacity-70">FIELD MANAGER OS · v4.1</p>
+        <div id="cloud-indicator" class="w-2 h-2 rounded-full bg-gray-400" title="클라우드 연결 대기중"></div>
+      </div>
+      <h1 class="text-xl font-black leading-tight">프로젝트 출근 관리</h1>
+    </div>
+
+    <div class="flex items-center gap-2 shrink-0">
+      <!-- 8일 카운팅 모드 -->
+      <div class="text-right">
+        <p class="text-[10px] opacity-70 mb-1 leading-none">8일 카운팅</p>
+        <div class="flex rounded-lg overflow-hidden border border-orange-300 text-[11px] font-bold h-7">
+          <button id="mode-site"  onclick="setCountingMode('site')"  class="px-2 transition">프로젝트</button>
+          <button id="mode-total" onclick="setCountingMode('total')" class="px-2 transition">합산</button>
+        </div>
+      </div>
+      <!-- 도구 및 설정 -->
+      <button onclick="openToolsModal()" class="bg-white/20 p-2 rounded-xl hover:bg-white/30 transition h-10 w-10 flex items-center justify-center">
+        <span class="text-lg">⚙️</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 2Depth 소속/프로젝트 선택 -->
+  <div class="max-w-lg mx-auto px-4 pb-3 flex flex-col gap-2">
+    <div class="flex gap-2">
+      <select id="company-select" class="flex-1 text-gray-900 font-bold text-sm rounded-xl px-3 py-2.5 bg-white shadow border-0 outline-none">
+        <option value="">— 소속 선택 —</option>
+      </select>
+      <button onclick="openCompanyModal()" class="bg-gray-100 text-gray-700 font-black text-sm px-4 py-2.5 rounded-xl shadow-sm hover:bg-gray-200 active:scale-95 transition whitespace-nowrap">
+        + 소속
+      </button>
+    </div>
+    <div class="flex gap-2">
+      <select id="site-select" class="flex-1 text-gray-900 font-bold text-base rounded-xl px-3 py-3 bg-white shadow border-0 outline-none">
+        <option value="">— 프로젝트를 선택하세요 —</option>
+      </select>
+      <button onclick="openSiteModal()" class="bg-white text-orange-500 font-black text-base px-4 py-3 rounded-xl shadow hover:bg-orange-50 active:scale-95 transition whitespace-nowrap">
+        + 프로젝트
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ════════ MAIN ════════ -->
+<main class="max-w-lg mx-auto px-4 pt-4 pb-36 space-y-4">
+
+  <!-- 달력 섹션 -->
+  <section class="bg-white rounded-2xl shadow overflow-hidden">
+    <!-- 달력 헤더 -->
+    <div class="flex items-center justify-between px-4 pt-4 pb-2">
+      <button onclick="shiftMonth(-1)" class="text-2xl px-2 py-1 hover:bg-gray-100 rounded-xl active:scale-90 transition">‹</button>
+      <div class="text-center">
+        <p id="cal-title" class="text-lg font-black text-gray-800"></p>
+        <p id="cal-stat"  class="text-xs text-gray-400 mt-0.5"></p>
+      </div>
+      <button onclick="shiftMonth(1)" class="text-2xl px-2 py-1 hover:bg-gray-100 rounded-xl active:scale-90 transition">›</button>
+    </div>
+
+    <!-- 다중선택 툴바 -->
+    <div class="flex items-center justify-between px-4 pb-2 gap-2">
+      <button id="multi-btn" onclick="toggleMultiMode()"
+        class="text-sm font-bold px-4 py-2 rounded-xl border-2 border-gray-200 text-gray-500 transition active:scale-95">
+        ☐ 다중선택
+      </button>
+      <button onclick="runTestScenario()"
+        class="text-xs bg-purple-100 text-purple-700 font-bold px-3 py-2 rounded-xl hover:bg-purple-200 active:scale-95 transition">
+        🧪 테스트
+      </button>
+    </div>
+
+    <!-- 요일 헤더 -->
+    <div class="grid grid-cols-7 text-center text-xs font-bold pb-1 px-2">
+      <span class="day-sun py-1">일</span>
+      <span class="text-gray-400 py-1">월</span><span class="text-gray-400 py-1">화</span>
+      <span class="text-gray-400 py-1">수</span><span class="text-gray-400 py-1">목</span>
+      <span class="text-gray-400 py-1">금</span>
+      <span class="day-sat py-1">토</span>
+    </div>
+    <!-- 달력 그리드 -->
+    <div id="cal-grid" class="grid grid-cols-7 gap-1 px-2 pb-3"></div>
+  </section>
+
+  <!-- 월별 대시보드 -->
+  <section id="dashboard" class="hidden bg-white rounded-2xl shadow overflow-hidden">
+    <div class="bg-gray-800 text-white px-5 py-3 flex justify-between items-start">
+      <div>
+        <h2 class="text-base font-black">📊 월별 급여 합계</h2>
+        <p id="dash-period" class="text-xs opacity-60 mt-0.5"></p>
+      </div>
+      <button onclick="openExportModal()" class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold text-xs px-3 py-2 rounded-lg transition active:scale-95 shadow shrink-0">
+        노임대장 출력
+      </button>
+    </div>
+    <div class="p-4 space-y-3">
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <div class="bg-blue-50 rounded-xl p-3">
+          <p class="text-xs text-blue-500 font-bold">세전</p>
+          <p id="dash-gross" class="text-base font-black text-blue-700 mt-1">—</p>
+        </div>
+        <div class="bg-red-50 rounded-xl p-3">
+          <p class="text-xs text-red-500 font-bold">총 공제</p>
+          <p id="dash-deduct" class="text-base font-black text-red-700 mt-1">—</p>
+        </div>
+        <div class="bg-green-50 rounded-xl p-3">
+          <p class="text-xs text-green-600 font-bold">세후</p>
+          <p id="dash-net" class="text-base font-black text-green-700 mt-1">—</p>
+        </div>
+      </div>
+      <div id="dash-workers" class="space-y-2"></div>
+    </div>
+  </section>
+
+  <!-- 인력 등록 (직관적인 UI 개편) -->
+  <section class="bg-white rounded-2xl shadow p-5 space-y-4">
+    <div class="flex items-center justify-between pb-2 border-b border-gray-100">
+      <h2 class="text-lg font-black text-gray-800">👷 새 인력 등록</h2>
+    </div>
+
+    <!-- 1단계: 어떤 형태의 근로자인가요? -->
+    <div>
+      <p class="text-sm font-bold text-gray-500 mb-2">1. 근로 형태를 선택하세요</p>
+      <div class="grid grid-cols-3 gap-2">
+        <button id="type-day" onclick="setWorkerType('일용직')" class="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-orange-500 bg-orange-50 transition active:scale-95">
+          <span class="text-2xl mb-1">👷</span>
+          <span class="font-bold text-gray-800 text-sm">일용직</span>
+          <span class="text-[10px] text-gray-500">일당제 (흔함)</span>
+        </button>
+        <button id="type-mix" onclick="setWorkerType('혼합(N잡)')" class="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-gray-100 bg-white hover:bg-gray-50 transition active:scale-95">
+          <span class="text-2xl mb-1">🚀</span>
+          <span class="font-bold text-gray-800 text-sm">N잡/혼합</span>
+          <span class="text-[10px] text-gray-500">일당+3.3% 섞임</span>
+        </button>
+        <button id="type-reg" onclick="setWorkerType('상용직')" class="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-gray-100 bg-white hover:bg-gray-50 transition active:scale-95">
+          <span class="text-2xl mb-1">💼</span>
+          <span class="font-bold text-gray-800 text-sm">상용직</span>
+          <span class="text-[10px] text-gray-500">월급제 (정직원)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2단계: 기본 정보 -->
+    <div>
+      <p class="text-sm font-bold text-gray-500 mb-2">2. 정보를 입력하세요</p>
+      <div class="space-y-2">
+        <div class="flex gap-2">
+          <input id="worker-name" type="text" placeholder="이름 (필수)" class="flex-1 font-bold text-base rounded-xl px-4 py-3.5 bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:ring-2 focus:ring-orange-300 transition"/>
+          <input id="worker-group" type="text" placeholder="소속 팀/그룹 (선택)" class="w-2/5 font-bold text-sm rounded-xl px-3 py-3.5 bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:ring-2 focus:ring-orange-300 transition"/>
+        </div>
+        <div class="flex gap-2">
+          <input id="worker-birth" type="number" placeholder="출생연도 (ex: 1985)" min="1930" max="2010" class="flex-1 font-bold text-sm rounded-xl px-4 py-3 bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:ring-2 focus:ring-orange-300 transition"/>
+          <label class="flex items-center gap-2 cursor-pointer bg-blue-50 border border-blue-200 px-4 py-3 rounded-xl">
+            <input id="foreign-cb" type="checkbox" class="w-4 h-4 accent-blue-500"/>
+            <span class="text-sm font-bold text-blue-700">외국인 여부</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3단계: 급여 정보 -->
+    <div>
+      <p class="text-sm font-bold text-gray-500 mb-2">3. 급여액을 설정하세요</p>
+      
+      <!-- 일반(일용/상용) 입력 -->
+      <div id="wage-single" class="relative">
+        <input id="worker-wage" type="number" placeholder="하루 일당 (원)" class="w-full font-black text-lg text-gray-800 rounded-xl px-4 py-4 bg-gray-50 border border-gray-200 outline-none focus:bg-white focus:ring-2 focus:ring-orange-300 transition pr-10"/>
+        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">원</span>
+      </div>
+
+      <!-- N잡용 기준 토글 스위치 (초기 숨김) -->
+      <div id="njob-base-toggle" class="hidden mt-2 flex gap-2">
+        <label class="flex flex-1 items-center justify-center gap-2 bg-white border border-gray-200 py-2.5 rounded-xl cursor-pointer hover:bg-violet-50 transition">
+          <input type="radio" name="njob-base" value="daily" class="w-5 h-5 accent-violet-600" checked />
+          <span class="text-sm font-bold text-gray-700">일당 기준</span>
+        </label>
+        <label class="flex flex-1 items-center justify-center gap-2 bg-white border border-gray-200 py-2.5 rounded-xl cursor-pointer hover:bg-violet-50 transition">
+          <input type="radio" name="njob-base" value="monthly" class="w-5 h-5 accent-violet-600" />
+          <span class="text-sm font-bold text-gray-700">월급 기준</span>
+        </label>
+      </div>
+
+      <!-- 혼합형(N잡) 입력 (초기 숨김) -->
+      <div id="wage-mixed" class="hidden p-4 rounded-xl border-2 border-violet-100 bg-violet-50/50 space-y-3">
+        <p class="text-xs font-bold text-violet-600 mb-1">하루에 지급받는 총액을 두 가지 성격으로 나눠서 입력해보세요.</p>
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-bold text-gray-700 w-24">① 일반 일당</span>
+          <div class="relative flex-1">
+            <input id="mix-wage-labor" type="number" placeholder="ex) 150000" class="w-full font-bold text-base rounded-xl px-3 py-3 bg-white border border-gray-200 outline-none pr-8"/>
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">원</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-bold text-gray-700 w-24">② 3.3% 프리랜서</span>
+          <div class="relative flex-1">
+            <input id="mix-wage-biz" type="number" placeholder="ex) 50000" class="w-full font-bold text-base rounded-xl px-3 py-3 bg-white border border-gray-200 outline-none pr-8"/>
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">원</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 식대/차량 옵션 -->
+      <div class="flex gap-2 mt-3">
+        <label class="flex flex-1 items-center justify-center gap-2 cursor-pointer bg-white border border-gray-200 py-3 rounded-xl hover:bg-gray-50 transition">
+          <input id="meal-cb" type="checkbox" class="w-5 h-5 accent-orange-500"/>
+          <span class="text-sm font-bold text-gray-600">식대 포함</span>
+        </label>
+        <label class="flex flex-1 items-center justify-center gap-2 cursor-pointer bg-white border border-gray-200 py-3 rounded-xl hover:bg-gray-50 transition">
+          <input id="car-cb" type="checkbox" class="w-5 h-5 accent-orange-500"/>
+          <span class="text-sm font-bold text-gray-600">차량 포함</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 등록/저장 액션 -->
+    <div class="flex gap-2 pt-2">
+      <button onclick="saveAsPreset()" class="w-1/3 bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold text-sm py-4 rounded-xl transition flex flex-col items-center justify-center">
+        <span class="text-lg">💾</span>
+        <span>프리셋 저장</span>
+      </button>
+      <button onclick="addWorker()" class="w-2/3 bg-gray-900 hover:bg-black text-white font-black text-lg py-4 rounded-xl shadow-md active:scale-95 transition">
+        ✓ 등록 완료
+      </button>
+    </div>
+  </section>
+
+</main>
+
+<!-- ════════ 일괄 처리 플로팅 바 ════════ -->
+<div id="bulk-bar" class="bulk-bar fixed bottom-0 left-0 right-0 z-40 flex justify-center pb-6 pointer-events-none">
+  <div class="bg-violet-600 text-white rounded-2xl shadow-2xl px-5 py-4 flex items-center gap-4 pointer-events-auto">
+    <span id="bulk-count" class="font-bold text-lg"></span>
+    <button onclick="openBulkModal()"
+      class="bg-white text-violet-700 font-black text-base px-5 py-2.5 rounded-xl active:scale-95 transition">
+      일괄 출근 처리
+    </button>
+    <button onclick="clearMultiSelect()"
+      class="text-violet-200 font-bold text-base px-2 py-2 rounded-xl hover:text-white transition">✕</button>
+  </div>
+</div>
+
+<!-- ════════ 바텀 시트 ════════ -->
+<div id="sheet-overlay" class="hidden fixed inset-0 z-40 sheet-overlay" onclick="closeBottomSheet()"></div>
+<div id="bottom-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl safe-bottom">
+  <div class="flex justify-center pt-3 pb-1">
+    <div id="sheet-drag-handle" class="w-10 h-1.5 bg-gray-300 rounded-full"></div>
+  </div>
+  <div class="px-5 pt-2 pb-3 border-b border-gray-100">
+    <div class="flex items-center justify-between">
+      <div>
+        <p id="sheet-date-title" class="text-xl font-black text-gray-800"></p>
+        <p id="sheet-stat"       class="text-sm text-gray-400 mt-0.5"></p>
+      </div>
+      <button id="sheet-all-btn" onclick="toggleAllAttendance()"
+        class="bg-green-500 hover:bg-green-600 text-white font-black text-base px-4 py-3 rounded-xl active:scale-95 transition whitespace-nowrap">
+        전체 출근
+      </button>
+    </div>
+  </div>
+  <div id="sheet-body" class="overflow-y-auto px-4 py-3 space-y-3 pb-8" style="max-height:55vh"></div>
+</div>
+
+<!-- ════════ 일괄 처리 모달 ════════ -->
+<div id="bulk-modal" class="hidden fixed inset-0 z-60 flex items-end justify-center modal-bg bg-black/40">
+  <div class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-6 pb-10 shadow-2xl">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-black text-gray-800">일괄 출근 처리</h3>
+      <button onclick="closeBulkModal()" class="text-gray-400 text-xl px-2">✕</button>
+    </div>
+    <p id="bulk-modal-desc" class="text-sm text-gray-500 mb-4"></p>
+    <div id="bulk-worker-list" class="space-y-2 mb-5"></div>
+    <div class="flex gap-2">
+      <button onclick="closeBulkModal()" class="w-1/4 bg-gray-100 text-gray-600 font-black text-lg py-5 rounded-xl active:scale-95 transition">취소</button>
+      <button onclick="removeBulk()" class="flex-1 bg-red-100 hover:bg-red-200 text-red-600 font-black text-lg py-5 rounded-xl active:scale-95 transition">🗑️ 일괄 해제</button>
+      <button onclick="applyBulk()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-black text-lg py-5 rounded-xl shadow-md active:scale-95 transition">✅ 일괄 출근</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ 노임대장 출력 모달 ════════ -->
+<div id="export-modal" class="hidden fixed inset-0 z-60 flex items-end justify-center modal-bg bg-black/40">
+  <div class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-6 pb-12 shadow-2xl space-y-3">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-xl font-black text-gray-800">어떤 형식으로 출력할까요?</h3>
+      <button onclick="closeExportModal()" class="text-gray-400 text-xl px-2">✕</button>
+    </div>
+    <p class="text-sm text-gray-500 mb-4">모든 기록이 A4규격의 1~31일 표로 생성됩니다.</p>
+    <button onclick="exportLedgerExcel(); closeExportModal();" class="w-full flex items-center justify-between p-5 border-2 border-green-200 bg-green-50 hover:bg-green-100 rounded-2xl transition active:scale-95">
+      <div class="text-left">
+        <p class="font-black text-xl text-green-700">📊 엑셀 다운로드</p>
+        <p class="text-sm text-green-600/80 mt-1">세무 신고 및 보관용 양식 (100% 호환)</p>
+      </div>
+    </button>
+    <button onclick="exportLedgerPDF(); closeExportModal();" class="w-full flex items-center justify-between p-5 border-2 border-red-200 bg-red-50 hover:bg-red-100 rounded-2xl transition active:scale-95 mt-2">
+      <div class="text-left">
+        <p class="font-black text-xl text-red-700">📄 PDF 다운로드 (가로형)</p>
+        <p class="text-sm text-red-600/80 mt-1">앱 자체 생성 (A4 1~31일표 + 급여명세표 통합)</p>
+      </div>
+    </button>
+  </div>
+</div>
+
+<!-- ════════ 소속 추가 모달 ════════ -->
+<div id="company-modal" class="hidden fixed inset-0 z-60 flex items-end justify-center modal-bg bg-black/40">
+  <div class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-6 pb-10 shadow-2xl">
+    <h3 class="text-xl font-black text-gray-800 mb-4">🏢 새 소속 추가</h3>
+    <input id="company-name-input" type="text" placeholder="예: (주)반장컴퍼니 또는 개인"
+      class="w-full font-semibold text-lg rounded-xl px-4 py-4 border border-gray-200 outline-none focus:ring-2 focus:ring-orange-300 mb-4"
+      onkeydown="if(event.key==='Enter')addCompany()"/>
+    <div class="flex gap-3">
+      <button onclick="closeCompanyModal()" class="flex-1 bg-gray-100 text-gray-600 font-black text-xl py-5 rounded-xl active:scale-95 transition">취소</button>
+      <button onclick="addCompany()" class="flex-1 bg-orange-500 text-white font-black text-xl py-5 rounded-xl shadow-md active:scale-95 transition">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ 프로젝트 추가 모달 ════════ -->
+<div id="site-modal" class="hidden fixed inset-0 z-60 flex items-end justify-center modal-bg bg-black/40">
+  <div class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-6 pb-10 shadow-2xl">
+    <h3 class="text-xl font-black text-gray-800 mb-4">🏗️ 새 프로젝트 추가</h3>
+    <input id="site-name-input" type="text" placeholder="프로젝트 명칭 (ex: OO마을 신축)"
+      class="w-full font-semibold text-lg rounded-xl px-4 py-4 border border-gray-200 outline-none focus:ring-2 focus:ring-orange-300 mb-4"
+      onkeydown="if(event.key==='Enter')addSite()"/>
+    <div class="flex gap-3">
+      <button onclick="closeSiteModal()"
+        class="flex-1 bg-gray-100 text-gray-600 font-black text-xl py-5 rounded-xl active:scale-95 transition">취소</button>
+      <button onclick="addSite()"
+        class="flex-1 bg-orange-500 text-white font-black text-xl py-5 rounded-xl shadow-md active:scale-95 transition">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ 공제 상세 모달 ════════ -->
+<div id="deduct-modal" class="hidden fixed inset-0 z-60 flex items-end justify-center modal-bg bg-black/40">
+  <div class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-6 pb-10 shadow-2xl">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-black text-gray-800" id="deduct-title"></h3>
+      <button onclick="closeDeductModal()" class="text-gray-400 text-2xl px-2">✕</button>
+    </div>
+    <div id="deduct-body" class="space-y-1 text-base"></div>
+  </div>
+</div>
+
+<!-- ════════ 근로자 수정/삭제 모달 ════════ -->
+<div id="edit-worker-modal" class="hidden fixed inset-0 z-60 flex items-end justify-center modal-bg bg-black/40">
+  <div class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-6 pb-10 shadow-2xl space-y-4">
+    <div class="flex items-center justify-between border-b pb-3 mb-2">
+      <h3 class="text-xl font-black text-gray-800">⚙️ 근로자 정보 수정</h3>
+      <button onclick="closeEditWorkerModal()" class="text-gray-400 text-2xl px-2">✕</button>
+    </div>
+    
+    <input type="hidden" id="edit-w-original" />
+    <div class="space-y-4">
+      <div>
+        <label class="text-xs font-bold text-gray-500 mb-1 block">이름 / 소속 그룹</label>
+        <div class="flex gap-2">
+          <input id="edit-w-name" type="text" placeholder="이름" class="w-3/5 font-bold text-lg px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />
+          <input id="edit-w-group" type="text" placeholder="팀/그룹" class="w-2/5 font-bold text-sm px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-bold text-gray-500 mb-1 block">기본 단가/월급 (원)</label>
+        <input id="edit-w-wage" type="number" class="w-full font-bold text-lg px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />
+      </div>
+      <div class="flex gap-2">
+        <label class="flex flex-1 items-center justify-center gap-2 bg-white border border-gray-200 py-3 rounded-xl cursor-pointer">
+          <input id="edit-w-meal" type="checkbox" class="w-5 h-5 accent-orange-500"/> <span class="text-sm font-bold text-gray-700">식대</span>
+        </label>
+        <label class="flex flex-1 items-center justify-center gap-2 bg-white border border-gray-200 py-3 rounded-xl cursor-pointer">
+          <input id="edit-w-car" type="checkbox" class="w-5 h-5 accent-orange-500"/> <span class="text-sm font-bold text-gray-700">차량</span>
+        </label>
+      </div>
+    </div>
+    <div id="edit-w-regular-btn-container" class="pt-2 hidden">
+      <button onclick="fillRegularAttendance()" class="w-full bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 font-bold text-sm py-4 rounded-xl active:scale-95 transition">✨ 이번 달 상용직 만근(평일) 자동 출근 처리</button>
+    </div>
+    <div class="flex gap-2 pt-4 border-t mt-4 border-gray-100">
+      <button onclick="confirmDeleteWorker()" class="w-1/3 bg-red-50 text-red-600 hover:bg-red-100 font-bold text-sm py-4 rounded-xl active:scale-95 transition">🗑️ 영구 삭제</button>
+      <button onclick="saveEditWorker()" class="w-2/3 bg-gray-900 text-white hover:bg-black font-black text-lg py-4 rounded-xl shadow-md active:scale-95 transition">💾 수정 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ 정산 명세서 모달 ════════ -->
+<div id="report-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center modal-bg bg-black/40">
+  <div class="bg-white rounded-3xl w-11/12 max-w-sm overflow-hidden flex flex-col shadow-2xl max-h-[90vh]">
+    <div class="px-5 pt-4 pb-3 border-b flex justify-between items-center">
+      <h3 class="font-black text-lg text-gray-800">📁 정산 명세서</h3>
+      <button onclick="closeReportModal()" class="text-gray-400 text-2xl px-2">✕</button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 bg-gray-50">
+      <!-- html2canvas 캡처 영역 -->
+      <div id="report-capture-area" class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div class="text-center mb-5">
+          <p class="text-[10px] font-black text-orange-400 tracking-widest mb-1">FIELD MANAGER OS</p>
+          <h2 class="text-2xl font-black text-gray-900">급여 명세서</h2>
+          <p id="rep-tags" class="text-xs text-blue-600 font-bold mt-1"></p>
+        </div>
+        <div class="bg-stone-50 rounded-xl p-4 border border-stone-100 mb-4 space-y-2">
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-400">성명</span>
+            <span id="rep-name" class="font-black text-gray-900 text-base"></span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-400">프로젝트</span>
+            <span id="rep-site" class="font-bold text-gray-700"></span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-400">정산월</span>
+            <span id="rep-month" class="font-bold text-gray-700"></span>
+          </div>
+        </div>
+        <table class="w-full text-sm mb-4">
+          <thead>
+            <tr class="border-b border-gray-100">
+              <th class="text-left text-gray-400 font-bold py-2">항목</th>
+              <th class="text-right text-gray-400 font-bold py-2">금액</th>
+            </tr>
+          </thead>
+          <tbody id="rep-body"></tbody>
+        </table>
+        <div class="bg-orange-500 text-white rounded-xl p-4 flex justify-between items-center">
+          <span class="font-bold text-sm">실수령액</span>
+          <span id="rep-net" class="text-xl font-black"></span>
+        </div>
+        <p class="text-center text-[9px] text-gray-300 font-bold tracking-tight mt-4">FIELD MANAGER OS · POWERED BY AGENT</p>
+      </div>
+    </div>
+
+    <div class="p-4 bg-white space-y-2">
+      <button onclick="exportToImage(this)"
+        class="w-full bg-violet-600 hover:bg-violet-700 text-white font-black text-lg py-4 rounded-2xl shadow-md active:scale-95 transition">
+        📸 이미지로 저장 (PNG)
+      </button>
+      <p class="text-center text-xs text-gray-400">저장 후 카카오톡으로 근로자에게 전송하세요.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ 도구 및 설정 모달 ════════ -->
+<div id="tools-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center modal-bg bg-black/40">
+  <div class="bg-white rounded-3xl w-11/12 max-w-sm p-6 shadow-2xl">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="text-xl font-black text-gray-800">⚙️ 시스템 도구</h3>
+      <button onclick="closeToolsModal()" class="text-gray-400 text-2xl">✕</button>
+    </div>
+    <div class="space-y-4">
+      <!-- 엑셀 양식 단일 캐싱 (오프라인/Fetch 에러 방지용) -->
+      <div>
+        <p class="text-sm font-bold text-gray-400 mb-2">오프라인 엑셀 양식 등록 (.xlsx)</p>
+        <button onclick="document.getElementById('excel-template-input').click()" class="w-full bg-emerald-50 text-emerald-700 font-bold py-3 rounded-xl hover:bg-emerald-100 transition border border-emerald-200">
+          📥 엑셀 양식 파일 불러오기
+        </button>
+        <input type="file" id="excel-template-input" class="hidden" accept=".xlsx" onchange="registerExcelTemplate(this)"/>
+        <p id="excel-template-status" class="text-xs text-gray-400 mt-1 pl-1">상태: 내장된 양식 없음</p>
+      </div>
+      <hr class="border-gray-100"/>
+      <div>
+        <p class="text-sm font-bold text-gray-400 mb-2">데이터 백업</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="backupData()" class="bg-blue-50 text-blue-700 font-bold py-3 text-sm rounded-xl hover:bg-blue-100 transition">💾 내보내기</button>
+          <button onclick="document.getElementById('import-file').click()" class="bg-green-50 text-green-700 font-bold py-3 text-sm rounded-xl hover:bg-green-100 transition">📂 가져오기</button>
+          <input type="file" id="import-file" class="hidden" accept=".json" onchange="restoreData(this)"/>
+        </div>
+      </div>
+      <hr class="border-gray-100"/>
+      <div>
+        <p class="text-sm font-bold text-gray-400 mb-2">클라우드 동기화</p>
+        <div class="flex gap-2">
+          <button onclick="manualPull()" class="flex-1 bg-violet-50 text-violet-600 font-bold py-3 rounded-xl hover:bg-violet-100 transition">☁️ 서버에서 불러오기</button>
+          <button onclick="manualPush()" class="flex-1 bg-orange-50 text-orange-600 font-bold py-3 rounded-xl hover:bg-orange-100 transition">📤 서버로 밀어넣기</button>
+        </div>
+        <p class="text-[10px] text-gray-400 mt-2">* 기기 간 데이터가 다를 때 클릭하세요.</p>
+      </div>
+      <hr class="border-gray-100"/>
+      <div>
+        <p class="text-sm font-bold text-gray-400 mb-2">데이터 초기화</p>
+        <button onclick="resetData()" class="w-full bg-red-50 text-red-600 font-bold py-3 rounded-xl hover:bg-red-100 transition">⚠️ 전체 초기화</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+// ══════════════════════════════════════════════
+// 상수 & 요율 (Phase 2 유지)
+// ══════════════════════════════════════════════
+const RATES = {
+  pension:0.045, health:0.03545, lterm:0.1281, employment:0.009,
+  withholdRate:0.06, withholdCredit:0.55, localTax:0.10,
+  dailyExempt:150000, mealMonthly:200000, carMonthly:200000, eightDayCutoff:8
+};
+const KEY = 'fieldManagerOS_v3';
+const KEY_V2 = 'fieldManagerOS_v2';
+const DAYS_KO = ['일','월','화','수','목','금','토'];
+
+// ══════════════════════════════════════════════
+// Supabase 초기화
+// ══════════════════════════════════════════════
+const SB_URL = "https://ejgsotsviobjfvfqovcj.supabase.co";
+const SB_KEY = "sb_publishable_SAnv6Yjv6Cnur3ennfQ_Ig_EBve9h7Y";
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+function updateCloudStatus(status) {
+  const el = document.getElementById('cloud-indicator');
+  if(!el) return;
+  const colors = { 
+    'online': 'bg-green-400', 
+    'syncing': 'bg-yellow-400 animate-pulse', 
+    'error': 'bg-red-500', 
+    'offline': 'bg-gray-400' 
+  };
+  const titles = {
+    'online': '클라우드 동기화 완료',
+    'syncing': '동기화 중...',
+    'error': '연결 오류',
+    'offline': '오프라인'
+  };
+  el.className = `w-2 h-2 rounded-full ${colors[status] || colors.offline}`;
+  el.title = titles[status] || titles.offline;
+}
+
+// ══════════════════════════════════════════════
+// localStorage 유틸
+// ══════════════════════════════════════════════
+function loadData(){
+  const raw = localStorage.getItem(KEY);
+  if(raw) return JSON.parse(raw);
+  
+  // v2 데이터가 있다면 마이그레이션 실행
+  const v2Raw = localStorage.getItem(KEY_V2);
+  if(v2Raw) {
+    try {
+      const v2Data = JSON.parse(v2Raw);
+      const v3Data = migrateV2ToV3(v2Data);
+      saveData(v3Data); // 즉시 저장
+      alert('💾 기존 데이터가 새로운 ID 기반 시스템(v3.3)으로 성공적으로 이전되었습니다.');
+      return v3Data;
+    } catch(e) { console.error('Migration failed', e); }
+  }
+  
+  return { affiliations:[], projects:[], workers:[], attendance:[], extraIncome:[], settings:{countingMode:'site'} };
+}
+
+function migrateV2ToV3(v2) {
+  const v3 = { affiliations:[], projects:[], workers:[], attendance:[], extraIncome:[], settings: v2.settings||{countingMode:'site'} };
+  
+  // 1. 소속(Affiliations) 마이그레이션
+  const affMap = {}; // {v2_name: v3_id}
+  (v2.companies||[]).forEach(name => {
+    const id = crypto.randomUUID();
+    v3.affiliations.push({ id, name });
+    affMap[name] = id;
+  });
+  
+  // 2. 프로젝트(Projects) 마이그레이션
+  const projMap = {}; // {v2_site_name: v3_id}
+  Object.keys(v2.companySites||{}).forEach(affName => {
+    const affId = affMap[affName];
+    if(!affId) return;
+    v2.companySites[affName].forEach(siteName => {
+      const id = crypto.randomUUID();
+      v3.projects.push({ id, affiliation_id: affId, name: siteName });
+      projMap[siteName] = id;
+    });
+  });
+  
+  // 3. 근로자(Workers) 마이그레이션
+  const workerMap = {}; // {v2_site_name + '|' + v2_worker_name: v3_id}
+  Object.keys(v2.workers||{}).forEach(siteName => {
+    const projId = projMap[siteName];
+    if(!projId) return;
+    v2.workers[siteName].forEach(w => {
+      const id = crypto.randomUUID();
+      v3.workers.push({ id, project_id: projId, ...w });
+      workerMap[`${siteName}|${w.name}`] = id;
+    });
+  });
+  
+  // 4. 출근기록(Attendance) 마이그레이션
+  Object.keys(v2.attendance||{}).forEach(siteName => {
+    const projId = projMap[siteName];
+    if(!projId) return;
+    Object.keys(v2.attendance[siteName]).forEach(date => {
+      v2.attendance[siteName][date].forEach(workerName => {
+        const workerId = workerMap[`${siteName}|${workerName}`];
+        if(!workerId) return;
+        v3.attendance.push({ id: crypto.randomUUID(), project_id: projId, worker_id: workerId, date });
+      });
+    });
+  });
+  
+  // 5. 추가소득(ExtraIncome) 마이그레이션
+  Object.keys(v2.extraIncome||{}).forEach(siteName => {
+    const projId = projMap[siteName];
+    if(!projId) return;
+    Object.keys(v2.extraIncome[siteName]).forEach(date => {
+      Object.keys(v2.extraIncome[siteName][date]).forEach(workerName => {
+        const workerId = workerMap[`${siteName}|${workerName}`];
+        if(!workerId) return;
+        v3.extraIncome.push({
+          id: crypto.randomUUID(), 
+          project_id: projId, 
+          worker_id: workerId, 
+          date, 
+          amount: v2.extraIncome[siteName][date][workerName]
+        });
+      });
+    });
+  });
+  
+  return v3;
+}
+
+async function saveData(d){ 
+  localStorage.setItem(KEY,JSON.stringify(d)); 
+  await pushToCloudV3(d); 
+}
+
+// ══════════════════════════════════════════════
+// Supabase Sync 로직
+// ══════════════════════════════════════════════
+async function pushToCloudV3(data) {
+  if(!sb) return;
+  updateCloudStatus('syncing');
+  try {
+    const { error } = await sb
+      .from('user_data') 
+      .upsert({ id: 'app_master_data_v3', payload: data, updated_at: new Date() });
+      
+    if(error) throw error;
+    updateCloudStatus('online');
+  } catch(e) {
+    console.error("Cloud Push Error:", e);
+    updateCloudStatus('error');
+  }
+}
+
+async function pullFromCloud() {
+  if(!sb) return null;
+  updateCloudStatus('syncing');
+  try {
+    const { data, error } = await sb
+      .from('user_data')
+      .select('payload')
+      .eq('id', 'app_master_data_v3')
+      .single();
+      
+    if(error && error.code !== 'PGRST116') throw error;
+    if(data && data.payload) {
+      localStorage.setItem(KEY, JSON.stringify(data.payload));
+      updateCloudStatus('online');
+      return data.payload;
+    }
+    updateCloudStatus('online');
+  } catch(e) {
+    console.error("Cloud Pull Error:", e);
+    updateCloudStatus('error');
+  }
+  return null;
+}
+
+// ══════════════════════════════════════════════
+// 데이터 조회 헬퍼 (v3 ID 기반)
+// ══════════════════════════════════════════════
+function getAffiliationById(data, id) { return data.affiliations.find(a => a.id === id); }
+function getProjectById(data, id) { return data.projects.find(p => p.id === id); }
+function getWorkerById(data, id) { return data.workers.find(w => w.id === id); }
+function getWorkersByProjectId(data, projectId) { return data.workers.filter(w => w.project_id === projectId); }
+function getAttendanceByProjectId(data, projectId, date) { 
+  return data.attendance.filter(a => a.project_id === projectId && a.date === date); 
+}
+function getExtraIncomeByProjectId(data, projectId, date) {
+  return data.extraIncome.filter(e => e.project_id === projectId && e.date === date);
+}
+
+// ══════════════════════════════════════════════
+// 공제 계산 엔진 (v4.2 외국인/고령 적용)
+// ══════════════════════════════════════════════
+function getWorkerAge(worker){
+  if(!worker.birthYear) return null;
+  return new Date().getFullYear() - parseInt(worker.birthYear);
+}
+
+function calculateDeductions(worker, days, extraIncomeTotal=0, wdim=22){
+  const {type,dailyWage,mealAllowance,carAllowance,isForeigner,birthYear,isMonthlyBase}=worker, r=RATES;
+  const isMonthly = (type==='상용직') || (type==='혼합(N잡)' && isMonthlyBase);
+  
+  // 만약 며칠 나오지도 않았고, 추가 소득도 없고, 월급제도 아니면 0 리턴
+  if(days===0 && extraIncomeTotal===0 && !isMonthly) return zeroD();
+  
+  const age = birthYear ? new Date().getFullYear() - parseInt(birthYear) : null;
+  const noPension = (age !== null && age >= 60) || !!isForeigner;
+  const noEmployment = false; 
+  
+  let grossBase = 0, taxBase = 0, mealNT = 0, carNT = 0;
+  let pension=0, health=0, lterm=0, employment=0, incomeTax=0, localTax=0;
+  
+  if(isMonthly) {
+    // [상용직]: 출근일수 관계없이 입력된 월급 기준 100% 한달치 계산
+    grossBase = dailyWage; 
+    mealNT = mealAllowance ? r.mealMonthly : 0;
+    carNT = carAllowance ? r.carMonthly : 0;
+    taxBase = Math.max(0, grossBase - mealNT - carNT);
+    
+    pension = noPension ? 0 : Math.floor(taxBase*r.pension);
+    health = Math.floor(taxBase*r.health);
+    lterm = Math.floor(health*r.lterm);
+    employment = noEmployment ? 0 : Math.floor(taxBase*r.employment);
+    incomeTax = Math.floor(approxTax(taxBase));
+    localTax = Math.floor(incomeTax*r.localTax);
+  } else {
+    // [일용직 및 N잡]: 출근일자(days)만큼 일당 계산
+    grossBase = dailyWage * days;
+    employment = noEmployment ? 0 : Math.floor(grossBase*r.employment);
+    
+    for(let i=0; i<days; i++){
+      const t = Math.max(0, dailyWage - r.dailyExempt);
+      incomeTax += Math.floor(t * r.withholdRate * r.withholdCredit);
+    }
+    localTax = Math.floor(incomeTax*r.localTax);
+    
+    if(days >= r.eightDayCutoff){
+      pension = noPension ? 0 : Math.floor(grossBase*r.pension);
+      health = Math.floor(grossBase*r.health);
+      lterm = Math.floor(health*r.lterm);
+    }
+  }
+
+  // [+@ 사업/기타소득 (3.3%)]
+  const extraGross = extraIncomeTotal;
+  const extraIncomeTax = Math.floor(extraGross * 0.03);
+  const extraLocalTax = Math.floor(extraGross * 0.003);
+  
+  incomeTax += extraIncomeTax;
+  localTax += extraLocalTax;
+
+  const gross = grossBase + extraGross;
+  const totalDeduct = pension+health+lterm+employment+incomeTax+localTax;
+  
+  return {gross, pension, health, lterm, employment, incomeTax, localTax, totalDeduct, net: gross-totalDeduct, days, noPension, age, isForeigner:!!isForeigner, extraGross, extraTax: extraIncomeTax+extraLocalTax};
+}
+function approxTax(mw){
+  if(mw<=1000000) return 0;
+  if(mw<=1500000) return Math.floor((mw-1000000)*0.06);
+  if(mw<=3000000) return Math.floor(30000+(mw-1500000)*0.15);
+  if(mw<=4500000) return Math.floor(255000+(mw-3000000)*0.24);
+  return Math.floor(615000+(mw-4500000)*0.35);
+}
+function zeroD(){ return {gross:0,pension:0,health:0,lterm:0,employment:0,incomeTax:0,localTax:0,totalDeduct:0,net:0,days:0}; }
+
+function countDaysWorked(workerId, ym, projectId, mode){
+  const d=loadData();
+  if(mode==='site'){
+    return d.attendance.filter(a => a.worker_id === workerId && a.project_id === projectId && a.date.startsWith(ym)).length;
+  }
+  // 합산 모드: 프로젝트 상관없이 해당 근로자 ID의 모든 기록 합산
+  return d.attendance.filter(a => a.worker_id === workerId && a.date.startsWith(ym)).length;
+}
+
+// ══════════════════════════════════════════════
+// 상태
+// ══════════════════════════════════════════════
+let currentYM   = '';      // YYYY-MM
+let sheetDate   = '';      // YYYY-MM-DD
+let multiMode   = false;
+let selectedDates = new Set();
+let isDragging  = false;
+let dragStartDate = null;
+let deleteTarget = null;
+let selectedType = '일용직';
+const deductCache = new Map(); // {name: deductObj} 바퇰시트용
+
+// ══════════════════════════════════════════════
+// 초기화 및 렌더링
+// ══════════════════════════════════════════════
+function renderCompanySelect(){
+  const data=loadData(), sel=document.getElementById('company-select'), cur=sel.value;
+  sel.innerHTML='<option value="">— 소속 선택 —</option>';
+  data.affiliations.forEach(aff=>{
+    const o=document.createElement('option'); o.value=aff.id; o.textContent=aff.name; if(aff.id===cur) o.selected=true;
+    sel.appendChild(o);
+  });
+}
+function renderSiteSelect(){
+  const data=loadData(), affId=document.getElementById('company-select').value, sel=document.getElementById('site-select'), cur=sel.value;
+  sel.innerHTML='<option value="">— 프로젝트를 선택하세요 —</option>';
+  if(affId) {
+    data.projects.filter(p => p.affiliation_id === affId).forEach(proj=>{
+      const o=document.createElement('option'); o.value=proj.id; o.textContent=proj.name; if(proj.id===cur) o.selected=true;
+      sel.appendChild(o);
+    });
+  }
+}
+
+async function init(){
+  currentYM = getToday().substring(0,7);
+  
+  // 앱 시작 시 클라우드 데이터 확인 (백그라운드)
+  await pullFromCloud();
+  
+  const d = loadData();
+  applyModeUI(d.settings?.countingMode||'site');
+  applytypeUI('일용직');
+  
+  const cSel = document.getElementById('company-select');
+  const sSel = document.getElementById('site-select');
+  cSel.addEventListener('change', ()=>{ sSel.value=''; renderSiteSelect(); buildCalendar(); updateDashboard(); });
+  sSel.addEventListener('change', ()=>{ buildCalendar(); updateDashboard(); });
+  
+  renderCompanySelect();
+  renderSiteSelect();
+  buildCalendar();
+  updateDashboard();
+  updateDashboard();
+  
+  const b64 = localStorage.getItem('fieldManagerOS_template');
+  const stat = document.getElementById('excel-template-status');
+  if(stat) stat.innerHTML = b64 ? '상태: <span class="text-green-500 font-bold">오프라인 내장 완료 ✅</span>' : '상태: 내장된 양식 없음';
+
+  // 대시보드 명세서 버튼: 이벤트 위임
+  document.getElementById('dash-workers').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action="report"]');
+    if(btn) openReportModal(btn.dataset.workerId, parseInt(btn.dataset.days));
+  });
+
+  // 바텀시트 공제 상세: 이벤트 위임
+  document.getElementById('sheet-body').addEventListener('click', e => {
+    const el = e.target.closest('[data-action="deduct"]');
+    if(el){
+      e.stopPropagation();
+      const workerId = el.dataset.workerId;
+      const deduct = deductCache.get(workerId);
+      if(deduct) {
+        const data = loadData();
+        const w = getWorkerById(data, workerId);
+        showDeductModal(w.name, deduct);
+      }
+    }
+  });
+
+  // 스와이프 다운 닫기
+  let sheetTouchY = 0;
+  const handle = document.getElementById('sheet-drag-handle');
+  handle.addEventListener('touchstart', e=>{ sheetTouchY = e.touches[0].clientY; },{passive:true});
+  handle.addEventListener('touchmove', e=>{
+    const dy = e.touches[0].clientY - sheetTouchY;
+    if(dy>50) closeBottomSheet();
+  },{passive:true});
+}
+
+
+function getToday(){ 
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function formatKRW(n){ return Math.round(n).toLocaleString('ko-KR')+'원'; }
+function dateStr(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+
+// ══════════════════════════════════════════════
+// 달력 빌드
+// ══════════════════════════════════════════════
+function shiftMonth(delta){
+  const pieces = currentYM.split('-');
+  let y = parseInt(pieces[0]), m = parseInt(pieces[1]);
+  if(isNaN(y) || isNaN(m)){ const d=new Date(); y=d.getFullYear(); m=d.getMonth()+1; }
+  
+  const nd = new Date(y, m-1+delta, 1);
+  currentYM = `${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}`;
+  buildCalendar();
+  updateDashboard();
+}
+
+function buildCalendar(){
+  const projectId = document.getElementById('site-select').value;
+  const data = loadData();
+  const [y,m] = currentYM.split('-').map(Number);
+  const today = getToday();
+
+  const proj = getProjectById(data, projectId);
+  document.getElementById('cal-title').textContent = `${y}년 ${m}월`;
+
+  const firstDay = new Date(y,m-1,1).getDay(); // 0=일
+  const lastDate = new Date(y,m,0).getDate();
+  const prevLast = new Date(y,m-1,0).getDate();
+
+  // 출근 집계 (현장별)
+  const atts = data.attendance.filter(a => a.project_id === projectId && a.date.startsWith(currentYM));
+
+  let cells = '';
+  // 이전달 빈칸
+  for(let i=0;i<firstDay;i++){
+    const d = prevLast - firstDay + 1 + i;
+    cells += calCell(y, m-1===0?y-1:y, m-1===0?12:m-1, d, data, projectId, today, true);
+  }
+  // 이번달
+  for(let d=1;d<=lastDate;d++){
+    cells += calCell(y, y, m, d, data, projectId, today, false);
+  }
+  // 다음달 빈칸
+  const total = firstDay + lastDate;
+  const rem = total%7===0?0:7-total%7;
+  for(let d=1;d<=rem;d++){
+    cells += calCell(y, m===12?y+1:y, m===12?1:m+1, d, data, projectId, today, true);
+  }
+
+  document.getElementById('cal-grid').innerHTML = cells;
+
+  // 이벤트 바인딩
+  document.querySelectorAll('.cal-cell[data-date]').forEach(el=>{
+    el.addEventListener('click', ()=>{ onCellTap(el.dataset.date); });
+    let lpTimer;
+    el.addEventListener('touchstart', e=>{
+      lpTimer = setTimeout(()=>{ if(!multiMode) enterMultiMode(); }, 500);
+      if(multiMode) startDrag(el.dataset.date);
+    },{passive:true});
+    el.addEventListener('touchmove', e=>{
+      clearTimeout(lpTimer);
+      if(!multiMode||!isDragging) return;
+      const touch = e.touches[0];
+      const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.cal-cell[data-date]');
+      if(target) expandDrag(target.dataset.date);
+      e.preventDefault();
+    },{passive:false});
+    el.addEventListener('touchend', ()=>{ clearTimeout(lpTimer); isDragging=false; dragStartDate=null; });
+    el.addEventListener('mousedown', ()=>{ if(multiMode) startDrag(el.dataset.date); });
+    el.addEventListener('mouseenter', e=>{ if(isDragging&&multiMode) expandDrag(el.dataset.date); });
+    el.addEventListener('mouseup', ()=>{ isDragging=false; dragStartDate=null; });
+  });
+
+  // 통계 뱃지
+  const workerList = getWorkersByProjectId(data, projectId);
+  const totalPresent = new Set(atts.map(a => a.date)).size;
+  document.getElementById('cal-stat').textContent = projectId
+    ? `근로자 ${workerList.length}명 · 출근일 ${totalPresent}일`
+    : '현장을 선택해 주세요';
+}
+
+function calCell(cy, y, m, d, data, projectId, today, otherMonth){
+  const ds = dateStr(y, m, d);
+  const attCount = data.attendance.filter(a => a.project_id === projectId && a.date === ds).length;
+  const isToday = ds===today;
+  const isSel = selectedDates.has(ds);
+  const dow = new Date(y, m-1, d).getDay();
+  const dayColor = dow===0?'day-sun':dow===6?'day-sat':'text-gray-700';
+  let cls = 'cal-cell flex flex-col items-center justify-center select-none';
+  if(otherMonth) cls += ' other-month';
+  if(isToday)    cls += ' today';
+  if(attCount>0 && !isSel) cls += ' has-att';
+  if(isSel)      cls += ' selected';
+  const badge = attCount>0 ? `<span class="text-xs font-black ${isSel?'text-violet-700':'text-green-700'} leading-none">${attCount}</span>` : '';
+  return `<div class="${cls}" data-date="${ds}">
+    <span class="text-base font-bold ${dayColor}">${d}</span>
+    ${badge}
+  </div>`;
+}
+
+// ══════════════════════════════════════════════
+// 다중선택
+// ══════════════════════════════════════════════
+function toggleMultiMode(){
+  if(multiMode) clearMultiSelect(); else enterMultiMode();
+}
+function enterMultiMode(){
+  multiMode = true;
+  document.getElementById('multi-btn').className =
+    'text-sm font-bold px-4 py-2 rounded-xl border-2 border-violet-400 text-violet-700 bg-violet-50 transition active:scale-95';
+  document.getElementById('multi-btn').textContent = '✓ 다중선택 중';
+}
+function clearMultiSelect(){
+  multiMode = false; selectedDates.clear(); isDragging=false; dragStartDate=null;
+  document.getElementById('multi-btn').className =
+    'text-sm font-bold px-4 py-2 rounded-xl border-2 border-gray-200 text-gray-500 transition active:scale-95';
+  document.getElementById('multi-btn').textContent = '☐ 다중선택';
+  document.getElementById('bulk-bar').classList.remove('show');
+  buildCalendar();
+}
+function startDrag(date){ isDragging=true; dragStartDate=date; toggleDate(date); }
+function expandDrag(date){
+  if(!dragStartDate||date===dragStartDate) return;
+  // 범위 내 날짜 모두 선택
+  const [y,m] = currentYM.split('-').map(Number);
+  const lastDate = new Date(y,m,0).getDate();
+  const allDates = [];
+  for(let d=1;d<=lastDate;d++) allDates.push(dateStr(y,m,d));
+  const ia = allDates.indexOf(dragStartDate), ib = allDates.indexOf(date);
+  if(ia<0||ib<0) return;
+  const [lo,hi] = ia<ib?[ia,ib]:[ib,ia];
+  for(let i=lo;i<=hi;i++) selectedDates.add(allDates[i]);
+  updateMultiUI();
+}
+function toggleDate(date){
+  if(selectedDates.has(date)) selectedDates.delete(date); else selectedDates.add(date);
+  updateMultiUI();
+}
+function onCellTap(date){
+  if(multiMode){ toggleDate(date); buildCalendar(); return; }
+  openBottomSheet(date);
+}
+function updateMultiUI(){
+  buildCalendar();
+  const bar = document.getElementById('bulk-bar');
+  if(selectedDates.size>0){
+    document.getElementById('bulk-count').textContent = `${selectedDates.size}일 선택됨`;
+    bar.classList.add('show');
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
+// ══════════════════════════════════════════════
+// 바텀 시트
+// ══════════════════════════════════════════════
+function openBottomSheet(date){
+  sheetDate = date;
+  const projectId = document.getElementById('site-select').value;
+  if(!projectId){ alert('현장을 선택해 주세요.'); return; }
+  const data = loadData();
+  const workers = getWorkersByProjectId(data, projectId);
+  const mode = data.settings?.countingMode||'site';
+  const ym = date.substring(0,7);
+
+  // 날짜 제목
+  const [y,m,d] = date.split('-').map(Number);
+  const dow = DAYS_KO[new Date(y,m-1,d).getDay()];
+  document.getElementById('sheet-date-title').textContent = `${m}월 ${d}일 (${dow})`;
+
+  const atts = getAttendanceByProjectId(data, projectId, date);
+  document.getElementById('sheet-stat').textContent = `출근 ${atts.length}명 / 전체 ${workers.length}명`;
+
+  // 전체 출근 버튼
+  const allPresent = workers.length>0 && workers.every(w => atts.some(a => a.worker_id === w.id));
+  const btn = document.getElementById('sheet-all-btn');
+  btn.textContent = allPresent ? '전체 해제' : '전체 출근';
+  btn.className = `${allPresent?'bg-gray-300 text-gray-600':'bg-green-500 text-white'} font-black text-base px-4 py-3 rounded-xl active:scale-95 transition whitespace-nowrap`;
+
+  // 근로자 카드
+  const body = document.getElementById('sheet-body');
+  if(workers.length===0){
+    body.innerHTML = '<p class="text-center text-gray-400 py-8">인력을 먼저 등록해 주세요.</p>';
+  } else {
+    body.innerHTML = workers.map(w=>{
+      const present = atts.some(a => a.worker_id === w.id);
+      const days = countDaysWorked(w.id, ym, projectId, mode);
+      
+      const extraIncomes = data.extraIncome.filter(e => e.worker_id === w.id && e.date.startsWith(ym));
+      const totalEx = extraIncomes.reduce((s, e) => s + e.amount, 0);
+      
+      const deduct = calculateDeductions(w, days, totalEx);
+      deductCache.set(w.id, deduct); // 이벤트 위임용 캐시
+      const warn = days>=RATES.eightDayCutoff;
+      const wageStr = w.dailyWage ? `일당 ${w.dailyWage.toLocaleString()}원` : '일당 미입력';
+      return `
+      <div class="worker-toggle rounded-2xl overflow-hidden shadow-sm border cursor-pointer select-none ${present?'border-green-400':'border-gray-200'}"
+           onclick="toggleAtt('${w.id}')">
+        <div class="flex items-center gap-3 px-4 py-4 ${present?'bg-green-500':'bg-white'}">
+          <span class="text-3xl">${present?'✅':'⬜'}</span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-black text-xl ${present?'text-white':'text-gray-800'}">${w.group ? `<span class="text-sm border ${present?'border-green-200 text-green-100':'border-gray-300 text-gray-500'} px-1.5 py-0.5 rounded mr-1 align-text-bottom tracking-tight">[${w.group}]</span>`:''}${w.name}</span>
+              ${warn?'<span class="text-base" title="8일 이상">⚠️</span>':''}
+            </div>
+            <p class="text-sm ${present?'text-green-100':'text-gray-400'} mt-1">${w.type} · ${wageStr} · ${ym.slice(5)}월 ${days}일 근무</p>
+          </div>
+          <button onclick="event.stopPropagation();openEditWorkerModal('${w.id}')"
+            class="text-${present?'white':'gray'}-400 hover:text-gray-900 text-xl px-2 py-1 rounded-lg transition" title="수정/삭제">⚙️</button>
+        </div>
+        ${days>0 || totalEx>0 ?`
+        <div class="border-t ${present?'border-green-400':'border-gray-100'} px-4 py-2.5 flex items-center justify-between ${present?'bg-green-500':'bg-gray-50'}"
+             data-action="deduct" data-worker-id="${w.id}" style="cursor:pointer">
+          <div class="flex gap-3 text-sm ${present?'text-green-100':'text-gray-500'}">
+            <span>세전 <b class="${present?'text-white':'text-gray-700'}">${formatKRW(deduct.gross)}</b></span>
+            <span>공제 <b class="${present?'text-red-200':'text-red-500'}">${formatKRW(deduct.totalDeduct)}</b></span>
+            <span>세후 <b class="${present?'text-white':'text-gray-700'}">${formatKRW(deduct.net)}</b></span>
+          </div>
+          <div class="flex items-center gap-2">
+            ${w.type==='혼합(N잡)' && present ? `<button onclick="event.stopPropagation();promptExtraIncome('${w.id}', '${date}')" class="px-2 py-1 bg-violet-600 hover:bg-violet-700 text-white rounded text-xs transition drop-shadow-sm">+@입력</button>`:''}
+            <span class="text-xs ${present?'text-green-200':'text-gray-400'}">상세 ›</span>
+          </div>
+        </div>`:''}
+      </div>`;
+    }).join('');
+  }
+
+
+  document.getElementById('sheet-overlay').classList.remove('hidden');
+  requestAnimationFrame(()=>{ document.getElementById('bottom-sheet').classList.add('open'); });
+}
+
+function closeBottomSheet(){
+  document.getElementById('bottom-sheet').classList.remove('open');
+  setTimeout(()=>{ document.getElementById('sheet-overlay').classList.add('hidden'); }, 300);
+}
+
+function toggleAtt(name){
+  const site = document.getElementById('site-select').value;
+  const data = loadData();
+  data.attendance[site] = data.attendance[site]||{};
+  data.attendance[site][sheetDate] = data.attendance[site][sheetDate]||[];
+  const arr = data.attendance[site][sheetDate];
+  const idx = arr.indexOf(name);
+  if(idx===-1) arr.push(name); else arr.splice(idx,1);
+  saveData(data);
+  buildCalendar();
+  updateDashboard();
+  openBottomSheet(sheetDate); // 새로고침
+}
+
+function toggleAllAttendance(){
+  const projectId = document.getElementById('site-select').value;
+  if(!projectId) return;
+  const data = loadData();
+  const workers = getWorkersByProjectId(data, projectId);
+  const currentAtts = getAttendanceByProjectId(data, projectId, sheetDate);
+  
+  const allPresent = workers.length > 0 && workers.every(w => currentAtts.some(a => a.worker_id === w.id));
+  
+  if(allPresent) {
+    // 모두 해제
+    data.attendance = data.attendance.filter(a => !(a.project_id === projectId && a.date === sheetDate));
+  } else {
+    // 모두 추가 (중복 제외)
+    workers.forEach(w => {
+      if(!currentAtts.some(a => a.worker_id === w.id)) {
+        data.attendance.push({ id: crypto.randomUUID(), project_id: projectId, worker_id: w.id, date: sheetDate });
+      }
+    });
+  }
+  saveData(data);
+  buildCalendar();
+  updateDashboard();
+  openBottomSheet(sheetDate);
+}
+
+// ══════════════════════════════════════════════
+// 일괄 처리
+// ══════════════════════════════════════════════
+function openBulkModal(){
+  const projectId = document.getElementById('site-select').value;
+  if(!projectId){ alert('현장을 선택하세요.'); return; }
+  const data = loadData();
+  const workers = getWorkersByProjectId(data, projectId);
+  const dates = [...selectedDates].sort();
+  document.getElementById('bulk-modal-desc').textContent =
+    `선택: ${dates.map(d=>d.slice(5).replace('-','/')).join(', ')} — 출근 처리할 근로자를 선택하세요.`;
+  document.getElementById('bulk-worker-list').innerHTML = workers.map(w=>`
+    <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50">
+      <input type="checkbox" name="bulk-w" value="${w.id}" class="w-5 h-5 accent-violet-600" checked/>
+      <span class="font-bold text-base text-gray-800">${w.name}</span>
+      <span class="text-sm text-gray-400">${w.type}</span>
+    </label>`).join('');
+  document.getElementById('bulk-modal').classList.remove('hidden');
+}
+function closeBulkModal(){ document.getElementById('bulk-modal').classList.add('hidden'); }
+function applyBulk(){
+  const projectId = document.getElementById('site-select').value;
+  const data = loadData();
+  const checkedIds = [...document.querySelectorAll('input[name="bulk-w"]:checked')].map(i=>i.value);
+  
+  selectedDates.forEach(date=>{
+    checkedIds.forEach(workerId=>{
+      if(!data.attendance.some(a => a.project_id === projectId && a.worker_id === workerId && a.date === date)) {
+        data.attendance.push({ id: crypto.randomUUID(), project_id: projectId, worker_id: workerId, date });
+      }
+    });
+  });
+  saveData(data);
+  closeBulkModal();
+  clearMultiSelect();
+  updateDashboard();
+  alert(`✅ ${selectedDates.size}일 × ${checkedIds.length}명 일괄 출근 처리 완료!`);
+}
+
+function removeBulk(){
+  const projectId = document.getElementById('site-select').value;
+  const data = loadData();
+  const checkedIds = [...document.querySelectorAll('input[name="bulk-w"]:checked')].map(i=>i.value);
+  
+  data.attendance = data.attendance.filter(a => {
+    const isTarget = a.project_id === projectId && selectedDates.has(a.date) && checkedIds.includes(a.worker_id);
+    return !isTarget;
+  });
+  
+  saveData(data);
+  closeBulkModal();
+  clearMultiSelect();
+  updateDashboard();
+  alert(`✅ ${selectedDates.size}일 × ${checkedIds.length}명 일괄 해제 완료!`);
+}
+
+// ══════════════════════════════════════════════
+// 대시보드
+// ══════════════════════════════════════════════
+function updateDashboard(){
+  const projectId = document.getElementById('site-select').value;
+  const data = loadData();
+  const mode = data.settings?.countingMode||'site';
+  const workers = getWorkersByProjectId(data, projectId);
+  const dash = document.getElementById('dashboard');
+  
+  if(!projectId || workers.length === 0) { 
+    dash.classList.add('hidden'); 
+    return; 
+  }
+  
+  const proj = getProjectById(data, projectId);
+  const aff = getAffiliationById(data, proj.affiliation_id);
+  
+  let tGross=0, tDeduct=0, tNet=0;
+  const rows = [];
+  
+  workers.forEach(w => {
+    const days = countDaysWorked(w.id, currentYM, projectId, mode);
+    
+    let totalEx = 0;
+    data.extraIncome
+      .filter(e => e.worker_id === w.id && e.date.startsWith(currentYM))
+      .forEach(e => totalEx += e.amount);
+
+    if(days===0 && totalEx===0 && w.type!=='상용직') return;
+    const d = calculateDeductions(w, days, totalEx);
+    tGross+=d.gross; tDeduct+=d.totalDeduct; tNet+=d.net;
+    rows.push({
+      id: w.id, name:w.name, group:w.group||'', type:w.type, days, 
+      gross:d.gross, deduct:d.totalDeduct, net:d.net, warn:days>=RATES.eightDayCutoff
+    });
+  });
+  
+  if(tGross===0){ dash.classList.add('hidden'); return; }
+  
+  dash.classList.remove('hidden');
+  document.getElementById('dash-period').textContent = `${currentYM.replace('-','년 ')}월 · ${proj.name} · ${mode==='site'?'현장독립':'합산기록'}`;
+  document.getElementById('dash-gross').textContent = formatKRW(tGross);
+  document.getElementById('dash-deduct').textContent = formatKRW(tDeduct);
+  document.getElementById('dash-net').textContent = formatKRW(tNet);
+  
+  document.getElementById('dash-workers').innerHTML = rows.map(r=>`
+    <div class="bg-stone-50 rounded-xl px-4 py-3 flex items-center justify-between">
+      <div class="flex-1 min-w-0 mr-2">
+        <div class="flex items-center gap-1">
+          <span class="font-bold text-base text-gray-800 truncate">${r.group ? `<span class="text-xs font-bold text-orange-600 bg-white border border-gray-200 px-1.5 py-0.5 rounded mr-1">[${r.group}]</span>`:''}${r.name}</span>
+          ${r.warn?'<span class="shrink-0">⚠️</span>':''}
+        </div>
+        <p class="text-sm text-gray-400 mt-0.5">${r.type} · ${r.days}일</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="text-right text-sm">
+          <p class="text-gray-400 text-xs">세후</p>
+          <p class="text-gray-800 font-black">${formatKRW(r.net)}</p>
+        </div>
+        <button onclick="openReportModal('${r.id}', ${r.days})"
+          class="bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 focus:ring focus:ring-gray-100 font-bold text-xs px-3 py-2.5 rounded-lg shadow-sm active:scale-95 transition shrink-0">
+          📄 명세서
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════
+// 인력 CRUD
+// ══════════════════════════════════════════════
+function addWorker(){
+  const projectId = document.getElementById('site-select').value;
+  if(!projectId){ alert('먼저 프로젝트를 선택해 주세요.'); return; }
+  const name   = document.getElementById('worker-name').value.trim();
+  const group  = document.getElementById('worker-group').value.trim();
+  const wage   = parseInt(document.getElementById('worker-wage').value)||0;
+  const meal   = document.getElementById('meal-cb').checked;
+  const car    = document.getElementById('car-cb').checked;
+  const birth  = document.getElementById('worker-birth').value.trim();
+  const isForeigner = document.getElementById('foreign-cb').checked;
+  if(!name){ document.getElementById('worker-name').focus(); return; }
+  
+  let isMonthlyBase = false;
+  if(selectedType === '혼합(N잡)') {
+    const radio = document.querySelector('input[name="njob-base"]:checked');
+    if(radio && radio.value === 'monthly') isMonthlyBase = true;
+  }
+  
+  const data = loadData();
+  if(data.workers.some(w => w.project_id === projectId && w.name === name)){ 
+    alert('이 프로젝트에 이미 동일한 이름의 근로자가 있습니다.'); 
+    return; 
+  }
+  
+  const newId = crypto.randomUUID();
+  data.workers.push({
+    id: newId, 
+    project_id: projectId, 
+    name, group, type:selectedType, dailyWage:wage, 
+    mealAllowance:meal, carAllowance:car,
+    birthYear:birth||null, isForeigner, isMonthlyBase
+  });
+  
+  saveData(data);
+  alert(`✅ ${name} 근로자가 등록되었습니다.`);
+  document.getElementById('worker-name').value='';
+  document.getElementById('worker-group').value='';
+  document.getElementById('worker-wage').value='';
+  document.getElementById('worker-birth').value='';
+  document.getElementById('meal-cb').checked=false;
+  document.getElementById('car-cb').checked=false;
+  document.getElementById('foreign-cb').checked=false;
+  document.getElementById('worker-name').focus();
+  buildCalendar(); updateDashboard();
+}
+
+// ══════════════════════════════════════════════
+// 회사/현장 CRUD
+// ══════════════════════════════════════════════
+function openCompanyModal(){ document.getElementById('company-modal').classList.remove('hidden'); setTimeout(()=>document.getElementById('company-name-input').focus(),80); }
+function closeCompanyModal(){ document.getElementById('company-modal').classList.add('hidden'); document.getElementById('company-name-input').value=''; }
+function addCompany(){
+  const input=document.getElementById('company-name-input'), name=input.value.trim();
+  if(!name){ input.focus(); return; }
+  const data=loadData();
+  if(data.affiliations.some(a => a.name === name)){ alert('이미 존재하는 소속입니다.'); return; }
+  
+  const newId = crypto.randomUUID();
+  data.affiliations.push({ id: newId, name });
+  saveData(data); 
+  renderCompanySelect();
+  document.getElementById('company-select').value = newId;
+  renderSiteSelect(); closeCompanyModal(); buildCalendar(); updateDashboard();
+}
+
+function openSiteModal(){ document.getElementById('site-modal').classList.remove('hidden'); setTimeout(()=>document.getElementById('site-name-input').focus(),80); }
+function closeSiteModal(){ document.getElementById('site-modal').classList.add('hidden'); document.getElementById('site-name-input').value=''; }
+function addSite(){
+  const affId = document.getElementById('company-select').value;
+  if(!affId){ alert('프로젝트를 추가할 소속을 먼저 선택하세요.'); return; }
+  const input=document.getElementById('site-name-input'), name=input.value.trim();
+  if(!name){ input.focus(); return; }
+  const data=loadData();
+  if(data.projects.some(p => p.affiliation_id === affId && p.name === name)){ 
+    alert('해당 소속에 이미 존재하는 프로젝트입니다.'); 
+    return; 
+  }
+  
+  const newId = crypto.randomUUID();
+  data.projects.push({ id: newId, affiliation_id: affId, name }); 
+  saveData(data); 
+  renderSiteSelect();
+  document.getElementById('site-select').value = newId;
+  closeSiteModal(); buildCalendar(); updateDashboard();
+}
+
+// ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// 수정 및 삭제 (Edit Worker Modal)
+// ══════════════════════════════════════════════
+function openEditWorkerModal(workerId){
+  const data = loadData();
+  const worker = getWorkerById(data, workerId);
+  if(!worker) return;
+  document.getElementById('edit-w-original').value = workerId;
+  document.getElementById('edit-w-name').value = worker.name;
+  document.getElementById('edit-w-group').value = worker.group || '';
+  document.getElementById('edit-w-wage').value = worker.dailyWage || 0;
+  document.getElementById('edit-w-meal').checked = !!worker.mealAllowance;
+  document.getElementById('edit-w-car').checked = !!worker.carAllowance;
+  
+  if(worker.type === '상용직'){
+    document.getElementById('edit-w-regular-btn-container').classList.remove('hidden');
+  } else {
+    document.getElementById('edit-w-regular-btn-container').classList.add('hidden');
+  }
+  
+  document.getElementById('edit-worker-modal').classList.remove('hidden');
+}
+
+function fillRegularAttendance(){
+  const projectId = document.getElementById('site-select').value;
+  const workerId = document.getElementById('edit-w-original').value;
+  const data = loadData();
+  const worker = getWorkerById(data, workerId);
+  if(!confirm(`[${worker.name}] 인력의 이번 달(${currentYM}) 전체 평일 출근 기록을 1초 만에 꽉 채우시겠습니까?`)) return;
+  
+  const [y, m] = currentYM.split('-').map(Number);
+  const lastDate = new Date(y, m, 0).getDate();
+  
+  let addedCount = 0;
+  for(let d=1; d<=lastDate; d++) {
+    const ds = `${currentYM}-${String(d).padStart(2,'0')}`;
+    const dateObj = new Date(y, m-1, d);
+    const dayOfWeek = dateObj.getDay();
+    // 주말(토/일) 제외
+    if(dayOfWeek !== 0 && dayOfWeek !== 6) {
+      if(!data.attendance.some(a => a.project_id === projectId && a.worker_id === workerId && a.date === ds)) {
+        data.attendance.push({ id: crypto.randomUUID(), project_id: projectId, worker_id: workerId, date: ds });
+        addedCount++;
+      }
+    }
+  }
+  
+  saveData(data);
+  alert(`✅ 평일 자동 출근 처리가 완료되었습니다.\n새롭게 ${addedCount}일의 출근 도장이 찍혔습니다!`);
+  buildCalendar(); updateDashboard();
+  if(sheetDate) openBottomSheet(sheetDate);
+}
+
+function closeEditWorkerModal(){
+  document.getElementById('edit-worker-modal').classList.add('hidden');
+}
+
+function saveEditWorker(){
+  const projectId = document.getElementById('site-select').value;
+  const data = loadData();
+  const workerId = document.getElementById('edit-w-original').value;
+  const newName = document.getElementById('edit-w-name').value.trim();
+  const newGroup = document.getElementById('edit-w-group').value.trim();
+  const newWage = parseInt(document.getElementById('edit-w-wage').value) || 0;
+  
+  if(!newName){ alert('이름을 입력하세요.'); return; }
+  
+  const worker = getWorkerById(data, workerId);
+  if(!worker) return;
+  
+  worker.name = newName;
+  worker.group = newGroup;
+  worker.dailyWage = newWage;
+  worker.mealAllowance = document.getElementById('edit-w-meal').checked;
+  worker.carAllowance = document.getElementById('edit-w-car').checked;
+  worker.updated_at = new Date().toISOString();
+  
+  saveData(data);
+  closeEditWorkerModal();
+  buildCalendar(); updateDashboard();
+  if(sheetDate) openBottomSheet(sheetDate);
+  alert('✅ 정보가 수정되었습니다.');
+}
+
+function confirmDeleteWorker(){
+  const workerId = document.getElementById('edit-w-original').value;
+  const data = loadData();
+  const worker = getWorkerById(data, workerId);
+  if(!worker) return;
+
+  if(!confirm(`⚠️ 정말로 [${worker.name}] 근로자를 삭제하시겠습니까?\n해당 근로자의 모든 출근 및 추가 소득 기록이 함께 삭제됩니다.`)) return;
+  
+  data.workers = data.workers.filter(w => w.id !== workerId);
+  data.attendance = data.attendance.filter(a => a.worker_id !== workerId);
+  data.extraIncome = data.extraIncome.filter(e => e.worker_id !== workerId);
+  
+  saveData(data); 
+  closeEditWorkerModal(); 
+  buildCalendar(); 
+  updateDashboard();
+  if(sheetDate) openBottomSheet(sheetDate);
+  alert('✅ 삭제되었습니다.');
+}
+
+// ══════════════════════════════════════════════
+// +@ 기타/추가소득 (N잡러용)
+// ══════════════════════════════════════════════
+function promptExtraIncome(workerId, date) {
+  const projectId = document.getElementById('site-select').value;
+  const data = loadData();
+  const worker = getWorkerById(data, workerId);
+  if(!worker) return;
+
+  const existing = data.extraIncome.find(e => e.worker_id === workerId && e.date === date);
+  const currentVal = existing ? existing.amount : '';
+  
+  const input = prompt(`[${worker.name}] ${date} 일자의 추가 소득(+@ 3.3%) 액수를 입력하세요:`, currentVal);
+  if (input === null) return;
+  
+  const parsed = parseInt(input.replace(/[^0-9]/g, ''));
+  
+  if (isNaN(parsed) || parsed === 0) {
+    data.extraIncome = data.extraIncome.filter(e => !(e.worker_id === workerId && e.date === date));
+  } else {
+    if(existing) {
+      existing.amount = parsed;
+    } else {
+      data.extraIncome.push({ id: crypto.randomUUID(), project_id: projectId, worker_id: workerId, date, amount: parsed });
+    }
+  }
+  saveData(data);
+  buildCalendar(); updateDashboard();
+  openBottomSheet(date);
+}
+
+// ══════════════════════════════════════════════
+// 공제 상세 모달
+// ══════════════════════════════════════════════
+function showDeductModal(name, deduct){
+  document.getElementById('deduct-title').textContent=`${name} — 공제 상세`;
+  const d=deduct;
+  const rows=[
+    ['근무일수',`${d.days}일`], ['세전 임금',formatKRW(d.gross)],
+    ['──','──'],
+    ['국민연금',formatKRW(d.pension), d.pension===0?'(8일 미만)':''],
+    ['건강보험',formatKRW(d.health), d.health===0?'(8일 미만)':''],
+    ['장기요양',formatKRW(d.lterm), d.lterm===0?'(8일 미만)':''],
+    ['고용보험',formatKRW(d.employment),''],
+    ['근로소득세',formatKRW(d.incomeTax),''],
+    ['지방소득세',formatKRW(d.localTax),''],
+    ['──','──'],
+    ['총 공제',formatKRW(d.totalDeduct),''],
+    ['실수령액',formatKRW(d.net),''],
+  ];
+  document.getElementById('deduct-body').innerHTML=rows.map(([l,v,n])=>
+    l==='──'?'<hr class="border-gray-100 my-1"/>':` 
+    <div class="flex justify-between py-2 border-b border-gray-50">
+      <span class="text-gray-500">${l}</span>
+      <span class="font-bold text-gray-800">${v} <span class="text-sm text-gray-400">${n||''}</span></span>
+    </div>`).join('');
+  document.getElementById('deduct-modal').classList.remove('hidden');
+}
+function closeDeductModal(){ document.getElementById('deduct-modal').classList.add('hidden'); }
+
+// ══════════════════════════════════════════════
+// 이미지 저장
+// ══════════════════════════════════════════════
+async function exportToImage(btn){
+  const area = document.getElementById('report-capture-area');
+  const originalText = btn.textContent;
+  try {
+    btn.disabled = true; btn.textContent = '이미지 생성 중...';
+    if(typeof html2canvas === 'undefined'){
+      alert('이미지 라이브러리 로딩 중. 잠시 후 다시 시도해 주세요.');
+      btn.disabled=false; btn.textContent=originalText; return;
+    }
+    const canvas = await html2canvas(area,{scale:3,backgroundColor:'#ffffff',logging:false,useCORS:true,allowTaint:true});
+    const image = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    const rd = _currentReportData;
+    link.href = image;
+    link.download = rd ? `${rd.month.replace('-','')}_${rd.site}_${rd.name}_정산.png` : 'salary.png';
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setTimeout(()=>alert('✅ 이미지가 저장되었습니다!\n카카오톡으로 근로자에게 전송해 주세요.'),200);
+  } catch(e){ console.error(e); alert('오류: '+e.message);
+  } finally { btn.disabled=false; btn.textContent=originalText; }
+}
+
+// ══════════════════════════════════════════════
+// 엑셀 양식 등록 및 출력 모달
+// ══════════════════════════════════════════════
+function openExportModal() { document.getElementById('export-modal').classList.remove('hidden'); }
+function closeExportModal() { document.getElementById('export-modal').classList.add('hidden'); }
+
+function registerExcelTemplate(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const b64 = e.target.result;
+    localStorage.setItem('fieldManagerOS_template', b64);
+    document.getElementById('excel-template-status').innerHTML = '상태: <span class="text-green-500 font-bold">오프라인 내장 완료 ✅</span>';
+    alert('✅ 성공적으로 브라우저에 엑셀 양식이 저장되었습니다!\n이제 인터넷이 없어도 [엑셀/PDF 다운로드]가 영구적으로 작동합니다.');
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+// ══════════════════════════════════════════════
+// 엑셀 노임대장 자체 생성 (ExcelJS)
+// ══════════════════════════════════════════════
+async function exportLedgerExcel() {
+  const company = document.getElementById('company-select').value;
+  const site = document.getElementById('site-select').value;
+  if(!company || !site){ alert('상단에서 건설사와 현장을 모두 선택해 주세요.'); return; }
+  
+  const b64 = localStorage.getItem('fieldManagerOS_template');
+  if(!b64){ alert('⚠️ 먼저 톱니바퀴(⚙️설정) 버튼을 눌러\\n[엑셀 양식 파일 불러오기]를 한 번만 진행해 주세요!'); return; }
+  
+  try {
+    const res = await fetch(b64);
+    const buffer = await res.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer);
+    const ws = wb.worksheets[0];
+    
+    ws.getCell('B1').value = company; ws.getCell('B2').value = site;
+    const [y, m] = currentYM.split('-');
+    ws.getCell('I1').value = parseInt(y); ws.getCell('O1').value = parseInt(m);
+    
+    const data = loadData();
+    const workers = data.workers?.[site]||[];
+    const att = data.attendance?.[site]||{};
+    const mode = data.settings?.countingMode||'site';
+    
+    let wIdx = 0;
+    for(let w of workers) {
+      const days = countDaysWorked(w.name, currentYM, site, mode);
+      if (days === 0) continue; 
+      
+      const r1 = 8 + wIdx * 2; const r2 = 9 + wIdx * 2;
+      
+      ws.getCell(`C${r1}`).value = w.name;
+      const yyyy = parseInt(w.birthYear || '1980');
+      const code = w.isForeigner ? (yyyy>=2000?'5':'5') : (yyyy>=2000?'3':'1');
+      ws.getCell(`D${r1}`).value = `${String(yyyy).substring(2)}0101-${code}111111`;
+      ws.getCell(`E${r1}`).value = w.type;
+      ws.getCell(`H${r1}`).value = parseInt(w.dailyWage)||0;
+      
+      const cols = ['I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X'];
+      for(let d=1; d<=16; d++) {
+         const ds = `${y}-${m}-${String(d).padStart(2,'0')}`;
+         ws.getCell(`${cols[d-1]}${r1}`).value = (att[ds] && att[ds].includes(w.name)) ? 1 : null;
+      }
+      for(let d=17; d<=31; d++) {
+         if(d > new Date(y, m, 0).getDate()) break;
+         const ds = `${y}-${m}-${String(d).padStart(2,'0')}`;
+         ws.getCell(`${cols[d-17]}${r2}`).value = (att[ds] && att[ds].includes(w.name)) ? 1 : null;
+      }
+      wIdx++;
+    }
+    
+    const blob = new Blob([await wb.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
+    link.download = `${y}${m}_${company}_${site}_노임대장.xlsx`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  } catch(e) { alert("엑셀 생성 오류: " + e.message); }
+}
+
+// ══════════════════════════════════════════════
+// PDF 가로형 명세표 (html2canvas + jsPDF) = 한글 안깨짐 보장
+// ══════════════════════════════════════════════
+async function exportLedgerPDF() {
+  if (typeof window.jspdf === 'undefined' || typeof html2canvas === 'undefined') {
+    alert("라이브러리 로딩 중입니다. 잠시 후 재시도 해주세요."); return;
+  }
+  
+  const projectId = document.getElementById('site-select').value;
+  if(!projectId){ alert('상단에서 프로젝트를 선택해 주세요.'); return; }
+  
+  const data = loadData();
+  const proj = getProjectById(data, projectId);
+  const aff = getAffiliationById(data, proj.affiliation_id);
+  const company = aff.name;
+  const site = proj.name;
+  
+  const [y, m] = currentYM.split('-');
+  const lastDay = new Date(y, m, 0).getDate();
+  const workers = getWorkersByProjectId(data, projectId);
+  const mode = data.settings?.countingMode||'site';
+  
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'absolute'; wrapper.style.left = '-9999px'; wrapper.style.top = '0';
+  wrapper.style.width = '1600px'; wrapper.style.background = 'white'; wrapper.style.padding = '40px';
+  
+  let rowsHtml = '';
+  workers.forEach(w => {
+    const days = countDaysWorked(w.id, currentYM, projectId, mode);
+    if(days === 0) return;
+    
+    let totalEx = 0;
+    data.extraIncome
+      .filter(e => e.worker_id === w.id && e.date.startsWith(currentYM))
+      .forEach(e => totalEx += e.amount);
+
+    const dR = calculateDeductions(w, days, totalEx);
+    
+    let dayTds = '';
+    for(let d=1; d<=31; d++) {
+      if(d > lastDay) { dayTds += `<td class="border border-gray-300 bg-gray-50"></td>`; continue; }
+      const ds = dateStr(y, m, d);
+      const isAtt = data.attendance.some(a => a.project_id === projectId && a.worker_id === w.id && a.date === ds);
+      dayTds += `<td class="border border-gray-300 p-0 text-center text-[10px] ${isAtt?'text-emerald-500 font-bold':''}">${isAtt?'o':''}</td>`;
+    }
+    
+    rowsHtml += `
+      <tr class="text-[11px] text-gray-800 bg-white">
+        <td class="border border-gray-300 px-1 py-2 text-center font-black whitespace-nowrap">${w.name}</td>
+        <td class="border border-gray-300 px-1 py-2 text-center whitespace-nowrap">${w.type}</td>
+        <td class="border border-gray-300 px-1 py-2 text-right whitespace-nowrap text-gray-400">${w.dailyWage.toLocaleString()}</td>
+        ${dayTds}
+        <td class="border border-gray-300 px-1 py-2 text-center font-bold bg-orange-50 text-orange-700">${days}</td>
+        <td class="border border-gray-300 px-1 py-2 text-right font-bold text-gray-900 bg-blue-50">${dR.gross.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-2 text-right whitespace-nowrap">${dR.pension.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-2 text-right whitespace-nowrap">${dR.health.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-2 text-right whitespace-nowrap">${dR.lterm.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-2 text-right whitespace-nowrap">${dR.employment.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-2 text-right whitespace-nowrap">${dR.incomeTax.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-2 text-right whitespace-nowrap">${dR.localTax.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-2 text-right font-bold text-red-500 bg-red-50">${dR.totalDeduct.toLocaleString()}</td>
+        <td class="border border-gray-300 px-2 py-2 text-right font-black text-emerald-700 bg-emerald-50">${dR.net.toLocaleString()}</td>
+      </tr>
+    `;
+  });
+  
+  if (!rowsHtml) { alert("출근 기록이 없습니다."); return; }
+  
+  let headTds = '';
+  for(let d=1; d<=31; d++) headTds += `<th class="border border-gray-400 p-1 font-bold text-gray-400">${d}</th>`;
+  
+  wrapper.innerHTML = `
+    <h1 class="text-3xl font-black mb-6 text-center text-gray-800">${y}년 ${m}월 노무비 명세서 (${company} - ${site})</h1>
+    <table class="w-full border-collapse border border-gray-400" style="table-layout: fixed;">
+      <thead>
+        <tr class="bg-gray-100 text-[10px] text-gray-800 font-bold whitespace-nowrap">
+          <th class="border border-gray-400 px-2 py-2" style="width:50px;">성명</th>
+          <th class="border border-gray-400 px-2 py-2" style="width:40px;">직종</th>
+          <th class="border border-gray-400 px-2 py-2" style="width:55px;">단가</th>
+          ${headTds}
+          <th class="border border-gray-400 p-1 text-center bg-orange-100" style="width:30px;">공수</th>
+          <th class="border border-gray-400 p-1 bg-blue-100" style="width:65px;">임금총액</th>
+          <th class="border border-gray-400 p-1" style="width:50px;">국민연금</th>
+          <th class="border border-gray-400 p-1" style="width:50px;">건강보험</th>
+          <th class="border border-gray-400 p-1" style="width:50px;">장기요양</th>
+          <th class="border border-gray-400 p-1" style="width:50px;">고용보험</th>
+          <th class="border border-gray-400 p-1" style="width:50px;">소득세</th>
+          <th class="border border-gray-400 p-1" style="width:40px;">지방세</th>
+          <th class="border border-gray-400 p-1 text-red-700 bg-red-100" style="width:60px;">공제합계</th>
+          <th class="border border-gray-400 p-1 text-emerald-800 bg-emerald-100" style="width:70px;">실수령액</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <p class="text-right text-gray-400 text-sm mt-4 font-bold tracking-tight">FIELD MANAGER OS · AGENT GENERATED</p>
+  `;
+  
+  document.body.appendChild(wrapper);
+  const loadingMsg = document.createElement('div');
+  loadingMsg.className = 'fixed inset-0 z-[100] flex items-center justify-center bg-black/60 text-white font-black text-2xl';
+  loadingMsg.textContent = '고해상도 PDF 생성 중...';
+  document.body.appendChild(loadingMsg);
+  
+  try {
+    const canvas = await html2canvas(wrapper, {scale: 2, useCORS: true, backgroundColor: '#ffffff'});
+    const imgData = canvas.toDataURL('image/png');
+    const doc = new window.jspdf.jsPDF('landscape', 'pt', 'a4');
+    const pdfW = doc.internal.pageSize.getWidth();
+    const pdfH = (canvas.height * pdfW) / canvas.width;
+    doc.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
+    doc.save(`${y}${m}_${company}_${site}_노무비명세서.pdf`);
+  } catch (e) {
+    alert("PDF 변환 오류: " + e.message);
+  } finally {
+    document.body.removeChild(wrapper);
+    document.body.removeChild(loadingMsg);
+  }
+}
+
+// ══════════════════════════════════════════════
+// 설정
+// ══════════════════════════════════════════════
+function setCountingMode(mode){
+  const d=loadData(); if(!d.settings) d.settings={}; d.settings.countingMode=mode; saveData(d);
+  applyModeUI(mode); buildCalendar(); updateDashboard();
+}
+
+function applyModeUI(mode){
+  const on='px-2.5 py-1.5 transition bg-white text-orange-600 font-black';
+  const off='px-2.5 py-1.5 transition text-orange-200';
+  document.getElementById('mode-site').className =mode==='site'?on:off;
+  document.getElementById('mode-total').className=mode==='total'?on:off;
+}
+function setWorkerType(t){
+  selectedType=t; applytypeUI(t);
+  
+  if(t==='혼합(N잡)') {
+    document.getElementById('wage-single').querySelector('input').placeholder = '기본 금액 (원)';
+    document.getElementById('njob-base-toggle').classList.remove('hidden');
+  } else {
+    document.getElementById('worker-wage').placeholder = t==='일용직'?'하루 일당 (원)':'월급 (원)';
+    document.getElementById('njob-base-toggle').classList.add('hidden');
+  }
+}
+function applytypeUI(t){
+  const elD = document.getElementById('type-day');
+  const elM = document.getElementById('type-mix');
+  const elR = document.getElementById('type-reg');
+  
+  const baseCls = 'flex flex-col items-center justify-center p-3 rounded-xl border-2 transition active:scale-95';
+  
+  elD.className = baseCls + (t==='일용직' ? ' border-orange-500 bg-orange-50' : ' border-gray-100 bg-white hover:bg-gray-50');
+  if(elM) elM.className = baseCls + (t==='혼합(N잡)' ? ' border-violet-500 bg-violet-50' : ' border-gray-100 bg-white hover:bg-gray-50');
+  elR.className = baseCls + (t==='상용직' ? ' border-blue-500 bg-blue-50' : ' border-gray-100 bg-white hover:bg-gray-50');
+}
+
+// ══════════════════════════════════════════════
+// 테스트 시나리오
+// ══════════════════════════════════════════════
+function runTestScenario(){
+  const data = loadData();
+  const tc = "테스트소속"; 
+  const ts = "테스트프로젝트";
+  
+  let aff = data.affiliations.find(a => a.name === tc);
+  if(!aff) {
+    aff = { id: crypto.randomUUID(), name: tc };
+    data.affiliations.push(aff);
+  }
+  
+  let proj = data.projects.find(p => p.name === ts && p.affiliation_id === aff.id);
+  if(!proj) {
+    proj = { id: crypto.randomUUID(), affiliation_id: aff.id, name: ts };
+    data.projects.push(proj);
+  }
+  
+  const wName = '김반장';
+  let worker = data.workers.find(w => w.name === wName && w.project_id === proj.id);
+  if(!worker) {
+    worker = { id: crypto.randomUUID(), project_id: proj.id, name: wName, type: '일용직', dailyWage: 200000 };
+    data.workers.push(worker);
+  }
+  
+  const [y, m] = currentYM.split('-');
+  for(let day=1; day<=8; day++){
+    const ds = `${y}-${m}-${String(day).padStart(2,'0')}`;
+    if(!data.attendance.some(a => a.worker_id === worker.id && a.date === ds)) {
+      data.attendance.push({ id: crypto.randomUUID(), project_id: proj.id, worker_id: worker.id, date: ds });
+    }
+  }
+  
+  saveData(data); 
+  renderCompanySelect(); 
+  document.getElementById('company-select').value = aff.id;
+  renderSiteSelect(); 
+  document.getElementById('site-select').value = proj.id;
+  buildCalendar(); 
+  updateDashboard();
+  
+  const r = calculateDeductions(worker, 8);
+  alert(`🧪 김반장 8일 테스트 완료!\n\n세전: ${formatKRW(r.gross)}\n세후: ${formatKRW(r.net)}\n\n⚠️ 8일 도달 → 4대보험 자동 적용`);
+}
+
+// ══════════════════════════════════════════════
+// 정산 리포트 & 이미지 저장
+// ══════════════════════════════════════════════
+let _currentReportData = null;
+
+function openReportModal(workerId, days){
+  const projectId = document.getElementById('site-select').value;
+  if(!projectId){ alert('프로젝트를 선택해 주세요.'); return; }
+  const data = loadData();
+  const worker = getWorkerById(data, workerId);
+  if(!worker){ alert('해당 근로자 정보를 찾을 수 없습니다.'); return; }
+  const proj = getProjectById(data, projectId);
+
+  let totalEx = 0;
+  data.extraIncome
+    .filter(e => e.worker_id === workerId && e.date.startsWith(currentYM))
+    .forEach(e => totalEx += e.amount);
+
+  const d = calculateDeductions(worker, days, totalEx);
+  _currentReportData = { name: worker.name, site: proj.name, month: currentYM, d };
+  
+  document.getElementById('rep-name').textContent = worker.name;
+  document.getElementById('rep-site').textContent = proj.name;
+  document.getElementById('rep-month').textContent = currentYM.replace('-','년 ')+'월';
+
+  // 특수 태그
+  const tags = [];
+  if(d.isForeigner) tags.push('외국인');
+  if(d.age !== null && d.age >= 60) tags.push(`${d.age}세`);
+  if(d.noPension) tags.push('국민연금 제외');
+  if(d.extraGross && d.extraGross > 0) tags.push('추가소득 합산');
+  document.getElementById('rep-tags').textContent = tags.join(' · ');
+  
+  const rows = [
+    ['기본급정산(세전)', d.gross - (d.extraGross||0)],
+  ];
+  if(d.extraGross > 0){
+    rows.push(['+@ 사업/기타소득', d.extraGross]);
+  }
+  rows.push(
+    ['국민연금', -d.pension],
+    ['건강보험', -d.health],
+    ['장기요양', -d.lterm],
+    ['고용보험', -d.employment],
+    ['근로/지방소득세', -(d.incomeTax + d.localTax - (d.extraTax||0))]
+  );
+  if(d.extraGross > 0){
+    rows.push(['+@ 추가소득세(3.3%)', -(d.extraTax||0)]);
+  }
+  
+  document.getElementById('rep-body').innerHTML = rows.filter(r=>r[1]!==0).map(([l,v])=>`
+    <tr>
+      <td class="py-3 border-b border-gray-50">${l}</td>
+      <td class="py-3 border-b border-gray-50 text-right font-bold ${v<0?'text-red-500':'text-gray-800'}">${v.toLocaleString()}원</td>
+    </tr>`).join('');
+    
+  document.getElementById('rep-net').textContent = formatKRW(d.net);
+  document.getElementById('report-modal').classList.remove('hidden');
+}
+
+function closeReportModal(){ document.getElementById('report-modal').classList.add('hidden'); }
+
+
+// ══════════════════════════════════════════════
+// 시스템 도구 (백업/복구/초기화)
+// ══════════════════════════════════════════════
+
+function openToolsModal(){ document.getElementById('tools-modal').classList.remove('hidden'); }
+function closeToolsModal(){ document.getElementById('tools-modal').classList.add('hidden'); }
+
+function backupData(){
+  const data = localStorage.getItem(KEY);
+  if(!data) { alert('백업할 데이터가 없습니다.'); return; }
+  
+  const blob = new Blob([data], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  
+  link.href = url;
+  link.download = `field_manager_backup_${date}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function restoreData(input){
+  const file = input.files[0];
+  if(!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const content = e.target.result;
+      JSON.parse(content); // 유효성 검사
+      if(confirm('데이터를 덮어씌우시겠습니까?\n현재 모든 기록이 파일의 내용으로 교체됩니다.')){
+        localStorage.setItem(KEY, content);
+        alert('✅ 복구가 완료되었습니다.');
+        location.reload();
+      }
+    } catch (err) {
+      alert('올바른 백업 파일이 아닙니다.');
+    }
+  };
+  reader.readAsText(file);
+  input.value = ''; // 재사용 가능하게
+}
+
+function resetData(){
+  if(confirm('⚠️ 경고: 모든 데이터가 삭제됩니다!\n현장, 인력, 출근부 기록이 전부 사라집니다. 정말 초기화하시겠습니까?')){
+    if(confirm('정말로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')){
+      localStorage.removeItem(KEY);
+      alert('초기화 완료');
+      location.reload();
+    }
+  }
+}
+
+async function manualPush() {
+  const d = loadData();
+  await pushToCloud(d);
+  alert("✅ 클라우드 업로드가 완료되었습니다!");
+}
+
+async function manualPull() {
+  if(!confirm("서버 데이터를 가져오면 현재 기기(로컬)의 데이터가 덮어씌워집니다. 진행할까요?")) return;
+  const d = await pullFromCloud();
+  if(d) {
+    alert("✅ 서버 데이터를 성공적으로 불러왔습니다!");
+    location.reload(); 
+  } else {
+    alert("❌ 서버에 저장된 데이터가 없거나 불러오지 못했습니다.");
+  }
+}
+
+// 모달 바깥 클릭
+['company-modal','site-modal','delete-modal','deduct-modal','bulk-modal','report-modal','tools-modal'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',function(e){
+    if(e.target===this){
+      if(id==='company-modal') closeCompanyModal();
+      if(id==='site-modal') closeSiteModal();
+      if(id==='delete-modal') closeDeleteModal();
+      if(id==='deduct-modal') closeDeductModal();
+      if(id==='bulk-modal') closeBulkModal();
+      if(id==='report-modal') closeReportModal();
+      if(id==='tools-modal') closeToolsModal();
+    }
+  });
+});
+window.runTest = ()=>{ const r=calculateDeductions({name:'김반장',type:'일용직',dailyWage:200000},8); console.table(r); return r; };
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

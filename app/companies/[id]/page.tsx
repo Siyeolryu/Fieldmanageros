@@ -1,0 +1,90 @@
+import React from 'react'
+import { notFound } from 'next/navigation'
+import prisma from '@/lib/prisma'
+import CompanyForm from '../../components/companies/CompanyForm'
+import DeleteCompanyButton from '../../components/companies/DeleteCompanyButton'
+
+import SiteCard from '../../components/sites/SiteCard'
+import Link from 'next/link'
+import Button from '../../components/ui/Button'
+
+export default async function EditCompanyPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  
+  const company = await prisma.company.findUnique({
+    where: { id },
+    include: {
+      sites: {
+        orderBy: { createdAt: 'desc' },
+      }
+    }
+  })
+
+  if (!company) {
+    notFound()
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto px-6 py-12">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+        <div>
+          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">
+            회사 정보 <span className="text-gray-400 text-2xl font-medium ml-2">상세/수정</span>
+          </h1>
+          <p className="text-lg text-gray-500 font-medium tracking-tight">
+            건설사 정보와 등록된 소속 현장을 통합 관리합니다.
+          </p>
+        </div>
+        <div className="flex gap-4">
+          <Link href={`/sites/new?companyId=${company.id}`}>
+            <Button variant="premium" size="md">
+              + 새 현장 추가
+            </Button>
+          </Link>
+          <DeleteCompanyButton companyId={company.id} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+        <div className="space-y-8">
+          <h3 className="text-2xl font-bold text-gray-900 ml-2">회사 기본 정보</h3>
+          <CompanyForm 
+            initialData={company} 
+            ownerId={company.ownerId} 
+            isEdit={true} 
+          />
+        </div>
+
+        <div className="space-y-8">
+          <div className="flex justify-between items-center ml-2">
+            <h3 className="text-2xl font-bold text-gray-900">소속 현장 목록</h3>
+            <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+              총 {company.sites.length}개
+            </span>
+          </div>
+          
+          {company.sites.length === 0 ? (
+            <div className="bg-gray-50 border border-dashed border-gray-200 rounded-[2.5rem] p-12 text-center">
+              <p className="text-gray-400 font-medium mb-4">등록된 현장이 없습니다.</p>
+              <Link href={`/sites/new?companyId=${company.id}`}>
+                <Button variant="outline" size="sm" className="rounded-xl">
+                  첫 현장 등록하기
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6">
+              {company.sites.map(site => (
+                <SiteCard key={site.id} site={site} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

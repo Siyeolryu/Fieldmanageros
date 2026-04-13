@@ -1,0 +1,52 @@
+{
+  "name": "nomu-pro",
+  "version": "1.0.0",
+  "description": "노무Pro - 건설 현장 인건비 신고 & 소득 관리 플랫폼",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "postinstall": "prisma generate",
+    "db:test": "tsx scripts/test-connection.ts",
+    "db:test-supabase": "tsx scripts/test-supabase.ts",
+    "db:migrate": "tsx scripts/run-migrations.ts",
+    "db:verify": "tsx scripts/verify-setup.ts",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.3.4",
+    "@prisma/client": "^5.10.2",
+    "@supabase/ssr": "^0.10.0",
+    "@supabase/supabase-js": "^2.39.7",
+    "date-fns": "^3.3.1",
+    "next": "15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.50.1",
+    "recharts": "^2.12.0",
+    "xlsx": "^0.18.5",
+    "zod": "^3.22.4",
+    "zustand": "^4.5.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.18",
+    "dotenv": "^17.4.0",
+    "eslint": "^8",
+    "eslint-config-next": "15.1.6",
+    "pg": "^8.20.0",
+    "postcss": "^8.4.35",
+    "prisma": "^5.10.2",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
