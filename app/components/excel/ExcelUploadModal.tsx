@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import Modal from '../ui/Modal'
-import Button from '../ui/Button'
+import Modal from '@/app/components/ui/Modal'
+import Button from '@/app/components/ui/Button'
 
 interface ExcelUploadModalProps {
   isOpen: boolean
