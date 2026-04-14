@@ -3,5 +3,9 @@
     "allow": [
       "Bash(git rev-parse:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
+  "enableAllProjectMcpServers": true
 }

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import Button from '../ui/Button'
+import Button from '@/app/components/ui/Button'
 import { Company } from '@prisma/client'
 
 const companySchema = z.object({

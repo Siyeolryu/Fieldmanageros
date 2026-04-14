@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Button from '../ui/Button'
+import Button from '@/app/components/ui/Button'
 
 export default function DeleteCompanyButton({ companyId }: { companyId: string }) {
   const router = useRouter()
