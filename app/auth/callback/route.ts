@@ -19,11 +19,11 @@ export async function GET(request: Request) {
         .eq('id', data.user.id)
         .single()
 
-      if (!existingProfile) {
+      if (!existingProfile && data.user.email) {
         await supabaseAdmin.from('profiles').insert({
           id: data.user.id,
           email: data.user.email,
-          full_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
+          full_name: data.user.user_metadata?.full_name || data.user.email.split('@')[0] || '사용자',
         })
       }
     }

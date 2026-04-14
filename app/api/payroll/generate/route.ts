@@ -90,7 +90,7 @@ export async function POST(request: Request) {
             workerName: worker.name,
             hourlyRate: worker.hourly_rate,
             attendance: attendance.map((a) => ({
-              date: a.date,
+              date: new Date(a.date),
               hoursWorked: Number(a.hours_worked),
               isWeeklyHoliday: a.is_weekly_holiday,
             })),

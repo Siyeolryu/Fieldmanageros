@@ -80,7 +80,7 @@ export async function GET(request: Request) {
     // 파일명 생성
     const filename = `출근부_${site.name}_${year}년${month}월.xlsx`
 
-    return new NextResponse(excelBuffer, {
+    return new NextResponse(new Uint8Array(excelBuffer), {
       headers: {
         'Content-Type':
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
