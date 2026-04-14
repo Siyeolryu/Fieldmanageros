@@ -91,9 +91,15 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... (SECRET!)
 NODE_ENV=production
 NEXT_PUBLIC_APP_URL=https://field-manager-os.vercel.app
 NEXT_PUBLIC_APP_NAME=Field Manager OS
+
+# Claude AI API
+ANTHROPIC_API_KEY=sk-ant-api03-... (SECRET!)
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 ```
 
-**중요**: `SUPABASE_SERVICE_ROLE_KEY`는 절대 public 환경 변수로 설정하지 마세요!
+**중요**:
+- `SUPABASE_SERVICE_ROLE_KEY`는 절대 public 환경 변수로 설정하지 마세요!
+- `ANTHROPIC_API_KEY`도 SECRET으로 설정해야 합니다 (서버 전용)
 
 ### 3.3 CLI로 환경 변수 설정 (대안)
 

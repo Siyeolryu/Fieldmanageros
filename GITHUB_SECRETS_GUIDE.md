@@ -50,6 +50,24 @@ Secret: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - ⚠️ **매우 중요**: 절대 public에 노출되면 안 됩니다!
 - RLS를 우회하는 권한을 가지고 있습니다
 
+#### Claude AI Secrets
+
+**ANTHROPIC_API_KEY**
+```
+Name: ANTHROPIC_API_KEY
+Secret: sk-ant-api03-...
+```
+- Anthropic Console에서 발급: https://console.anthropic.com/
+- AI 기능(공사비 역산, 자동 분석 등)에 사용
+- ⚠️ **중요**: 절대 클라이언트에 노출되면 안 됩니다
+
+**ANTHROPIC_MODEL** (선택)
+```
+Name: ANTHROPIC_MODEL
+Secret: claude-3-5-sonnet-20241022
+```
+- 사용할 Claude 모델 지정
+
 #### Vercel CI/CD Secrets (선택)
 
 **VERCEL_TOKEN**
