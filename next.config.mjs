@@ -1,6 +1,5 @@
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
   // 캐시 파일 충돌을 해결하기 위해 빌드 ID를 동적으로 생성합니다.
   generateBuildId: async () => {
