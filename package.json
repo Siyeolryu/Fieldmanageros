@@ -28,7 +28,6 @@
     "recharts": "^2.12.0",
     "xlsx": "^0.18.5",
     "zod": "^3.22.4",
-    "typescript": "^5",
     "zustand": "^4.5.1"
   },
   "devDependencies": {
@@ -44,7 +43,8 @@
     "postcss": "^8.4.35",
     "prisma": "^5.10.2",
     "tailwindcss": "^4.0.0",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "typescript": "^5"
   },
   "engines": {
     "node": ">=18.0.0"
