@@ -5,7 +5,6 @@ const nextConfig = {
   generateBuildId: async () => {
     return `build-${Date.now()}`
   },
-  typedRoutes: true,
   // Vercel 배포 시 프로젝트 루트를 명확히 지정하여 상위 디렉토리 lockfile 경고 해결
   outputFileTracingRoot: process.cwd(),
   eslint: {
