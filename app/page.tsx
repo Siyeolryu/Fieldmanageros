@@ -39,11 +39,20 @@ export default function LandingPage() {
         body: JSON.stringify({ email })
       })
 
+      const data = await res.json()
+
       if (res.ok) {
-        // Redirect to onboarding or dashboard
-        router.push('/home')
+        if (data.requiresEmailConfirmation) {
+          // Redirect to email confirmation page
+          router.push(`/auth/confirm-email?email=${encodeURIComponent(email)}`)
+        } else if (data.autoSignedIn) {
+          // Redirect to dashboard
+          router.push('/home')
+        } else {
+          // Fallback to login
+          router.push('/auth/login')
+        }
       } else {
-        const data = await res.json()
         setErrorMessage(data.error || '가입 중 오류가 발생했습니다')
       }
     } catch (error) {

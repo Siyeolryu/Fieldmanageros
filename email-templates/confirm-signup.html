@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>노무PRO 회원가입 확인</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      background-color: #f8fafc;
+    }
+    .email-container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+    }
+    .header {
+      background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .logo {
+      color: #ffffff;
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      margin: 0;
+    }
+    .logo-accent {
+      color: #fbbf24;
+    }
+    .content {
+      padding: 48px 24px;
+    }
+    .greeting {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1e293b;
+      margin: 0 0 16px 0;
+    }
+    .message {
+      font-size: 16px;
+      line-height: 1.6;
+      color: #475569;
+      margin: 0 0 32px 0;
+    }
+    .cta-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+      color: #ffffff;
+      text-decoration: none;
+      padding: 16px 48px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 16px;
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
+      transition: transform 0.2s;
+    }
+    .cta-button:hover {
+      transform: translateY(-2px);
+    }
+    .button-container {
+      text-align: center;
+      margin: 32px 0;
+    }
+    .info-box {
+      background-color: #f1f5f9;
+      border-left: 4px solid #2563eb;
+      padding: 16px;
+      margin: 24px 0;
+      border-radius: 8px;
+    }
+    .info-box p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #475569;
+    }
+    .features {
+      margin: 40px 0;
+    }
+    .feature {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+    .feature-icon {
+      background-color: #eff6ff;
+      color: #2563eb;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-right: 16px;
+      font-size: 20px;
+    }
+    .feature-content h3 {
+      margin: 0 0 4px 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .feature-content p {
+      margin: 0;
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.4;
+    }
+    .footer {
+      background-color: #1e293b;
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .footer p {
+      margin: 0 0 8px 0;
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    .divider {
+      height: 1px;
+      background-color: #e2e8f0;
+      margin: 32px 0;
+    }
+    .alt-link {
+      margin-top: 24px;
+      padding: 16px;
+      background-color: #fef3c7;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #78350f;
+      text-align: center;
+      word-break: break-all;
+    }
+    .alt-link a {
+      color: #b45309;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <!-- Header -->
+    <div class="header">
+      <h1 class="logo">노무<span class="logo-accent">PRO</span></h1>
+      <p style="color: #bfdbfe; margin: 8px 0 0 0; font-size: 14px; font-weight: 600;">건설 현장 노무 관리의 새로운 기준</p>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <h2 class="greeting">환영합니다! 🎉</h2>
+      <p class="message">
+        노무PRO에 가입해주셔서 감사합니다.<br>
+        아래 버튼을 클릭하여 이메일 주소를 인증하고 계정 활성화를 완료해주세요.
+      </p>
+
+      <!-- CTA Button -->
+      <div class="button-container">
+        <a href="{{ .ConfirmationURL }}" class="cta-button">이메일 인증하기</a>
+      </div>
+
+      <!-- Info Box -->
+      <div class="info-box">
+        <p>
+          <strong>⏰ 인증 링크는 24시간 동안 유효합니다.</strong><br>
+          시간이 지나면 새로운 인증 이메일을 요청해주세요.
+        </p>
+      </div>
+
+      <!-- Features Section -->
+      <div class="divider"></div>
+      <h3 style="font-size: 18px; font-weight: 700; color: #1e293b; margin: 0 0 24px 0;">계정 인증 후 이용 가능한 기능</h3>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">📅</div>
+          <div class="feature-content">
+            <h3>실시간 근로자 관리</h3>
+            <p>출퇴근 기록, 일당 계산, 보험 관리를 한눈에</p>
+          </div>
+        </div>
+
+        <div class="feature">
+          <div class="feature-icon">🤖</div>
+          <div class="feature-content">
+            <h3>AI 공사비 분석</h3>
+            <p>지출 패턴을 분석하고 예산 초과를 미리 방지</p>
+          </div>
+        </div>
+
+        <div class="feature">
+          <div class="feature-icon">📊</div>
+          <div class="feature-content">
+            <h3>자동 신고 알림</h3>
+            <p>4대보험 신고 기한을 놓치지 않도록 자동 알림</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alternative Link -->
+      <div class="alt-link">
+        <p style="margin: 0 0 8px 0; font-weight: 600;">버튼이 작동하지 않나요?</p>
+        <p style="margin: 0;">아래 링크를 복사하여 브라우저에 붙여넣으세요:</p>
+        <p style="margin: 8px 0 0 0;">
+          <a href="{{ .ConfirmationURL }}">{{ .ConfirmationURL }}</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p style="font-weight: 600; color: #cbd5e1; margin-bottom: 12px;">노무PRO</p>
+      <p>건설 현장 인건비 신고 & 소득 관리 플랫폼</p>
+      <p>
+        문의사항이 있으신가요? <a href="mailto:support@nomupro.com">support@nomupro.com</a>
+      </p>
+      <p style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #334155;">
+        &copy; 2026 노무PRO. All rights reserved.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

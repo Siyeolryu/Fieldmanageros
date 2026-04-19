@@ -34,8 +34,13 @@ export async function POST(request: NextRequest) {
         data: {
           quick_signup: true,
           needs_password_setup: true,
+          signup_source: 'landing_page',
+          signup_timestamp: new Date().toISOString(),
         },
         emailRedirectTo: `${request.nextUrl.origin}/auth/callback`,
+        // Custom email template data
+        // Note: Email templates are configured in Supabase Dashboard
+        // This metadata can be used in email templates
       },
     })
 
@@ -63,7 +68,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Automatically sign in the user
+    // Check if email confirmation is required
+    if (signUpData.user && !signUpData.session) {
+      // Email confirmation is required
+      return NextResponse.json({
+        success: true,
+        user: signUpData.user,
+        message: '가입이 완료되었습니다. 이메일을 확인하여 계정을 인증해주세요.',
+        requiresEmailConfirmation: true,
+      })
+    }
+
+    // If session exists, user is automatically signed in (email confirmation disabled)
+    if (signUpData.session) {
+      return NextResponse.json({
+        success: true,
+        user: signUpData.user,
+        message: '가입이 완료되었습니다',
+        autoSignedIn: true,
+      })
+    }
+
+    // Fallback: try to sign in manually
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password: tempPassword,
@@ -71,13 +97,11 @@ export async function POST(request: NextRequest) {
 
     if (signInError) {
       console.error('Auto sign-in error:', signInError)
-      // Don't fail the whole request if auto sign-in fails
-      // User can still sign in manually
       return NextResponse.json({
         success: true,
         user: signUpData.user,
-        message: '가입이 완료되었습니다. 로그인해주세요.',
-        requiresLogin: true,
+        message: '가입이 완료되었습니다. 이메일을 확인하여 계정을 인증해주세요.',
+        requiresEmailConfirmation: true,
       })
     }
 
@@ -85,6 +109,7 @@ export async function POST(request: NextRequest) {
       success: true,
       user: signUpData.user,
       message: '가입이 완료되었습니다',
+      autoSignedIn: true,
     })
   } catch (error) {
     console.error('Quick signup error:', error)
