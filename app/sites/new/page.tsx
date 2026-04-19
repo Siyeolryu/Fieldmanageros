@@ -1,11 +1,10 @@
 import React from 'react'
 import SiteForm from '../../components/sites/SiteForm'
-import prisma from '@/lib/prisma'
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
 export default async function NewSitePage() {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
@@ -13,10 +12,14 @@ export default async function NewSitePage() {
   }
 
   // 건설사 목록 가져오기 (현장 등록 시 필요)
-  const companies = await prisma.company.findMany({
-    where: { ownerId: user.id },
-    orderBy: { name: 'asc' },
-  })
+  const { data: companies, error } = await supabase
+    .from('companies')
+    .select('*')
+    .order('name', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching companies:', error)
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
@@ -31,7 +34,7 @@ export default async function NewSitePage() {
 
       <div className="flex flex-col md:flex-row gap-12">
         <div className="flex-1">
-          <SiteForm companies={companies} />
+          <SiteForm companies={companies || []} />
         </div>
         
         <div className="hidden lg:block w-72 space-y-6">
