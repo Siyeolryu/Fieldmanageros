@@ -1,224 +1,347 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import CalendarView from '@/app/components/calendar/CalendarView'
-import SiteSelector from '@/app/components/ui/SiteSelector'
-import { useAppStore, useAuthStore } from '@/lib/store'
+import { useRouter } from 'next/navigation'
+import { useAuthStore } from '@/lib/store'
 import Link from 'next/link'
-import CostChart from '@/app/components/dashboard/CostChart'
-import Modal from '@/app/components/ui/Modal'
-import RiskRadar from '@/app/components/dashboard/RiskRadar'
-import CostSplitterModal from '@/app/components/dashboard/CostSplitterModal'
 
-export default function Home() {
-  const { selectedSite } = useAppStore()
+export default function LandingPage() {
+  const router = useRouter()
   const { user } = useAuthStore()
-  
-  const [stats, setStats] = useState<{
-    totalWorkers: number
-    todayAttendance: number
-    monthlyCost: number
-    riskWorkers: { name: string, days: number }[]
-    chartData: any[]
-  }>({
-    totalWorkers: 0,
-    todayAttendance: 0,
-    monthlyCost: 0,
-    riskWorkers: [],
-    chartData: []
-  })
-  const [isLoading, setIsLoading] = useState(true)
-  const [isReportOpen, setIsReportOpen] = useState(false)
-  const [isSplitterOpen, setIsSplitterOpen] = useState(false)
+  const [email, setEmail] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
-  const fetchStats = async () => {
-    if (!selectedSite) return
+  // Redirect logged-in users to dashboard
+  useEffect(() => {
+    if (user) {
+      router.push('/home')
+    }
+  }, [user, router])
+
+  const handleQuickSignup = async (e: React.FormEvent) => {
+    e.preventDefault()
     setIsLoading(true)
+    setErrorMessage('')
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setErrorMessage('올바른 이메일 주소를 입력해주세요')
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const res = await fetch(`/api/dashboard/stats?siteId=${selectedSite.id}`)
+      const res = await fetch('/api/auth/quick-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+
       if (res.ok) {
+        // Redirect to onboarding or dashboard
+        router.push('/home')
+      } else {
         const data = await res.json()
-        setStats(data)
+        setErrorMessage(data.error || '가입 중 오류가 발생했습니다')
       }
     } catch (error) {
-      console.error('Failed to fetch stats:', error)
+      console.error('Quick signup error:', error)
+      setErrorMessage('서버 오류가 발생했습니다')
     } finally {
       setIsLoading(false)
     }
   }
 
-  useEffect(() => {
-    fetchStats()
-  }, [selectedSite])
-
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-[family-name:var(--font-geist-sans)]">
-      {/* 상단 네비게이션 */}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      {/* Header */}
       <header className="sticky top-0 z-30 w-full bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <h1 className="text-xl font-black text-blue-600 tracking-tight">노무PRO</h1>
-            <nav className="hidden md:flex items-center gap-6">
-              <Link href="/" className="text-sm font-bold text-gray-900 border-b-2 border-blue-600 pb-1">대시보드</Link>
-              <Link href="/workers" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">근로자 관리</Link>
-              <Link href="/payroll" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">노임대장</Link>
-            </nav>
-          </div>
-          
+          <h1 className="text-xl font-black text-blue-600 tracking-tight">노무PRO</h1>
           <div className="flex items-center gap-4">
-            <SiteSelector />
-            <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden">
-               <span className="text-xs font-bold text-gray-600">{user?.fullName?.[0] || 'U'}</span>
-            </div>
+            <Link
+              href="/auth/login"
+              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              로그인
+            </Link>
+            <Link
+              href="/auth/signup"
+              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
+            >
+              시작하기
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* 메인 콘텐츠 */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          {/* 좌측 요약 정보 */}
-          <div className="lg:col-span-4 space-y-6">
-            <div className={`p-6 bg-white rounded-3xl shadow-sm border border-gray-100 transition-opacity ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">현재 현장 현황</h3>
-              <div className="space-y-1 mb-6">
-                <p className="text-2xl font-black text-gray-900 leading-tight truncate">
-                  {selectedSite?.name || '현장을 선택하세요'}
-                </p>
-                <p className="text-xs text-gray-500 font-bold">
-                  {selectedSite?.location || '위치 정보 없음'}
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-gray-50 rounded-2xl">
-                  <p className="text-[10px] font-bold text-gray-400 mb-1 uppercase">총 근로자</p>
-                  <p className="text-xl font-black text-gray-900">{stats.totalWorkers}명</p>
-                </div>
-                <div className="p-4 bg-blue-50">
-                  <p className="text-[10px] font-bold text-blue-400 mb-1 uppercase">오늘 출근</p>
-                  <p className="text-xl font-black text-blue-600">{stats.todayAttendance}명</p>
-                </div>
-              </div>
-
-              <div className="mt-4 p-4 bg-gray-50 rounded-2xl">
-                  <p className="text-[10px] font-bold text-gray-400 mb-1 uppercase">이번 달 누적 노무비</p>
-                  <p className="text-xl font-black text-gray-900">₩{stats.monthlyCost.toLocaleString()}</p>
-              </div>
+      {/* Hero Section */}
+      <section className="max-w-7xl mx-auto px-4 py-20 md:py-32">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          {/* Left - Hero Text */}
+          <div className="space-y-8">
+            <div className="inline-block px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-bold">
+              건설 현장 노무 관리의 새로운 기준
             </div>
 
-            <div className="h-[300px]">
-                <CostChart data={stats.chartData} />
-            </div>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-tight">
+              이메일 하나로<br />
+              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                즉시 시작하는
+              </span><br />
+              노무 관리
+            </h2>
 
-            {/* 보험료 리스크 레이더 */}
-            <RiskRadar workers={stats.riskWorkers} />
+            <p className="text-lg md:text-xl text-gray-600 leading-relaxed">
+              복잡한 인건비 신고와 소득 관리, 이제 노무PRO에서<br className="hidden md:block" />
+              간편하게 해결하세요. 별도 인증 없이 바로 시작할 수 있습니다.
+            </p>
 
-            <div className="p-6 bg-blue-600 rounded-3xl shadow-lg shadow-blue-200 text-white relative overflow-hidden group">
-              <div className="relative z-10">
-                <h3 className="text-lg font-bold mb-1">AI 공사비 분석</h3>
-                <p className="text-blue-100 text-sm leading-relaxed mb-4">
-                  현재 인원 투입 현황을 분석한 결과 공사비 지출이 <span className="font-bold underline">안정</span> 수준입니다.
-                </p>
-                <button 
-                    onClick={() => setIsReportOpen(true)}
-                    className="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-xl text-xs font-bold transition-all"
+            {/* Quick Signup Form */}
+            <form onSubmit={handleQuickSignup} className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="이메일 주소 입력"
+                  className="flex-1 px-6 py-4 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
+                  required
+                  disabled={isLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="px-8 py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  관점 리포트 보기
+                  {isLoading ? '처리 중...' : '무료로 시작하기'}
                 </button>
               </div>
-              <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
+              {errorMessage && (
+                <p className="text-red-600 text-sm font-medium">{errorMessage}</p>
+              )}
+              <p className="text-sm text-gray-500">
+                가입 즉시 모든 기능을 사용할 수 있습니다. 신용카드 불필요.
+              </p>
+            </form>
+
+            {/* Social Proof */}
+            <div className="flex items-center gap-6 pt-8 border-t border-gray-200">
+              <div>
+                <p className="text-2xl font-black text-gray-900">500+</p>
+                <p className="text-sm text-gray-500 font-medium">활성 현장</p>
+              </div>
+              <div className="w-px h-12 bg-gray-200" />
+              <div>
+                <p className="text-2xl font-black text-gray-900">10,000+</p>
+                <p className="text-sm text-gray-500 font-medium">관리 중인 근로자</p>
+              </div>
+              <div className="w-px h-12 bg-gray-200" />
+              <div>
+                <p className="text-2xl font-black text-gray-900">98%</p>
+                <p className="text-sm text-gray-500 font-medium">고객 만족도</p>
+              </div>
             </div>
           </div>
 
-          {/* 달력 영역 */}
-          <div className="lg:col-span-8">
-            <div className="h-full min-h-[650px] bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
-              <CalendarView />
-            </div>
-          </div>
+          {/* Right - Feature Preview */}
+          <div className="relative">
+            {/* Decorative gradient orbs */}
+            <div className="absolute -top-10 -right-10 w-72 h-72 bg-blue-400/20 rounded-full blur-3xl" />
+            <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-indigo-400/20 rounded-full blur-3xl" />
 
-        </div>
-      </main>
-
-      {/* AI 리포트 모달 (임시 레이아웃) */}
-      <Modal 
-        isOpen={isReportOpen} 
-        onClose={() => setIsReportOpen(false)}
-        title="AI 공사비 분석 관점 리포트"
-      >
-        <div className="space-y-6">
-            <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                <p className="text-sm text-blue-700 font-bold leading-relaxed">
-                    "현재 현장의 노무비 지출은 지난달 동일 기간 대비 약 <span className="underline">4.2% 감소</span>했습니다. 
-                    인건비 효율이 높은 상태이며, 현재 추세 유지 시 예상 월 총액은 예산 범위 내에 있을 것으로 판단됩니다."
-                </p>
-            </div>
-            
-            <div className="space-y-3">
-                <h4 className="text-xs font-bold text-gray-400 uppercase">분석 포인트</h4>
-                <div className="grid grid-cols-1 gap-3">
-                    <div className="p-3 bg-gray-50 rounded-xl flex items-center justify-between text-sm">
-                        <span className="text-gray-600">지연 가능성</span>
-                        <span className="font-bold text-green-600">매우 낮음</span>
-                    </div>
-                    <div className="p-3 bg-gray-50 rounded-xl flex items-center justify-between text-sm">
-                        <span className="text-gray-600">지역 평균 단가 대비</span>
-                        <span className="font-bold text-gray-900">-2% (적정)</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="pt-4 border-t border-gray-50 space-y-3">
-                <button 
-                    onClick={() => {
-                        setIsReportOpen(false)
-                        setIsSplitterOpen(true)
-                    }}
-                    className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-indigo-100 transition-colors"
-                >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            {/* Preview Cards */}
+            <div className="relative space-y-6">
+              <div className="p-6 bg-white rounded-3xl shadow-xl border border-gray-100">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
-                    AI 공사비 역산 도구 실행
-                </button>
-                <button className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-md" onClick={() => setIsReportOpen(false)}>
-                    확인
-                </button>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">실시간 근로자 관리</h3>
+                    <p className="text-sm text-gray-500">출퇴근, 일당, 보험 한눈에</p>
+                  </div>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full w-3/4 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full" />
+                </div>
+              </div>
+
+              <div className="p-6 bg-white rounded-3xl shadow-xl border border-gray-100">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">AI 공사비 분석</h3>
+                    <p className="text-sm text-gray-500">지출 패턴 자동 분석</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 bg-green-50 rounded-xl text-center">
+                    <p className="text-xs text-green-600 font-bold mb-1">안정</p>
+                    <p className="text-lg font-black text-green-700">92%</p>
+                  </div>
+                  <div className="p-3 bg-blue-50 rounded-xl text-center">
+                    <p className="text-xs text-blue-600 font-bold mb-1">효율</p>
+                    <p className="text-lg font-black text-blue-700">87%</p>
+                  </div>
+                  <div className="p-3 bg-indigo-50 rounded-xl text-center">
+                    <p className="text-xs text-indigo-600 font-bold mb-1">예측</p>
+                    <p className="text-lg font-black text-indigo-700">95%</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-3xl shadow-xl text-white">
+                <h3 className="font-bold text-lg mb-2">자동 신고 알림</h3>
+                <p className="text-blue-100 text-sm mb-4">4대보험 신고 기한을 놓치지 않도록 자동으로 알려드립니다</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  <span className="text-sm font-medium">다음 신고일: 2026년 5월 10일</span>
+                </div>
+              </div>
             </div>
+          </div>
         </div>
-      </Modal>
+      </section>
 
-      <CostSplitterModal 
-        isOpen={isSplitterOpen} 
-        onClose={() => setIsSplitterOpen(false)} 
-      />
+      {/* Features Section */}
+      <section className="bg-white py-20">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4">
+              노무 관리의 모든 것
+            </h2>
+            <p className="text-lg text-gray-600">
+              건설 현장에 필요한 모든 기능을 하나의 플랫폼에서
+            </p>
+          </div>
 
-      {/* 하단 탭 바 (모바일) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/90 backdrop-blur-lg border-t border-gray-100 px-6 flex items-center justify-between z-40 pb-safe">
-        <Link href="/" className="flex flex-col items-center gap-1 text-blue-600">
-          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-          <span className="text-[10px] font-bold">홈</span>
-        </Link>
-        <Link href="/workers" className="flex flex-col items-center gap-1 text-gray-400">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-          <span className="text-[10px] font-bold">근로자</span>
-        </Link>
-        <div className="relative -top-6">
-          <button className="w-14 h-14 bg-blue-600 rounded-2xl shadow-lg shadow-blue-300 flex items-center justify-center text-white transform active:scale-90 transition-transform">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-          </button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="p-8 bg-gray-50 rounded-3xl hover:shadow-xl transition-shadow">
+              <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-6">
+                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">출퇴근 관리</h3>
+              <p className="text-gray-600 leading-relaxed">
+                달력 기반 직관적인 인터페이스로 근로자의 출퇴근 현황을 한눈에 파악하고 관리하세요.
+              </p>
+            </div>
+
+            <div className="p-8 bg-gray-50 rounded-3xl hover:shadow-xl transition-shadow">
+              <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6">
+                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">노임 계산</h3>
+              <p className="text-gray-600 leading-relaxed">
+                복잡한 일당, 시급, 야간수당 계산을 자동화하고 정확한 노임대장을 생성하세요.
+              </p>
+            </div>
+
+            <div className="p-8 bg-gray-50 rounded-3xl hover:shadow-xl transition-shadow">
+              <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-6">
+                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">보험 신고</h3>
+              <p className="text-gray-600 leading-relaxed">
+                4대보험 가입 대상자를 자동으로 식별하고 신고 기한을 알림으로 관리하세요.
+              </p>
+            </div>
+          </div>
         </div>
-        <Link href="/payroll" className="flex flex-col items-center gap-1 text-gray-400">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          <span className="text-[10px] font-bold">대장</span>
-        </Link>
-        <button className="flex flex-col items-center gap-1 text-gray-400">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-          <span className="text-[10px] font-bold">설정</span>
-        </button>
-      </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-gradient-to-br from-blue-600 to-indigo-700">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h2 className="text-3xl md:text-4xl font-black text-white mb-6">
+            지금 바로 시작하세요
+          </h2>
+          <p className="text-lg md:text-xl text-blue-100 mb-10">
+            이메일 주소만 입력하면 즉시 모든 기능을 사용할 수 있습니다
+          </p>
+
+          <form onSubmit={handleQuickSignup} className="max-w-2xl mx-auto space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="이메일 주소 입력"
+                className="flex-1 px-6 py-4 bg-white border-2 border-transparent rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-white/30 transition-all"
+                required
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="px-8 py-4 bg-white text-blue-600 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? '처리 중...' : '무료로 시작하기'}
+              </button>
+            </div>
+            {errorMessage && (
+              <p className="text-red-200 text-sm font-medium">{errorMessage}</p>
+            )}
+          </form>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-400 py-12">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <h3 className="text-white font-black text-lg mb-4">노무PRO</h3>
+              <p className="text-sm leading-relaxed">
+                건설 현장 인건비 신고 & 소득 관리 플랫폼
+              </p>
+            </div>
+            <div>
+              <h4 className="text-white font-bold text-sm mb-4">제품</h4>
+              <ul className="space-y-2 text-sm">
+                <li><Link href="#" className="hover:text-white transition-colors">기능 소개</Link></li>
+                <li><Link href="#" className="hover:text-white transition-colors">요금제</Link></li>
+                <li><Link href="#" className="hover:text-white transition-colors">사용 사례</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-white font-bold text-sm mb-4">지원</h4>
+              <ul className="space-y-2 text-sm">
+                <li><Link href="#" className="hover:text-white transition-colors">도움말</Link></li>
+                <li><Link href="#" className="hover:text-white transition-colors">고객센터</Link></li>
+                <li><Link href="#" className="hover:text-white transition-colors">FAQ</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-white font-bold text-sm mb-4">회사</h4>
+              <ul className="space-y-2 text-sm">
+                <li><Link href="#" className="hover:text-white transition-colors">회사 소개</Link></li>
+                <li><Link href="#" className="hover:text-white transition-colors">이용약관</Link></li>
+                <li><Link href="#" className="hover:text-white transition-colors">개인정보처리방침</Link></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 pt-8">
+            <p className="text-center text-sm">
+              &copy; 2026 노무PRO. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
