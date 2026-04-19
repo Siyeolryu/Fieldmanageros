@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import AuthButton from '@/components/AuthButton'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient()
   const {
@@ -44,7 +46,7 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* 건설사 관리 */}
           <Link
-            href="/dashboard/companies"
+            href="/companies"
             className="group bg-slate-800/60 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-sky-500/50 transition-all hover:shadow-lg hover:shadow-sky-500/10"
           >
             <div className="flex items-center gap-4 mb-4">
@@ -64,7 +66,7 @@ export default async function DashboardPage() {
 
           {/* 현장 관리 */}
           <Link
-            href="/dashboard/sites"
+            href="/sites"
             className="group bg-slate-800/60 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-indigo-500/50 transition-all hover:shadow-lg hover:shadow-indigo-500/10"
           >
             <div className="flex items-center gap-4 mb-4">
@@ -85,7 +87,7 @@ export default async function DashboardPage() {
 
           {/* 근로자 관리 */}
           <Link
-            href="/dashboard/workers"
+            href="/workers"
             className="group bg-slate-800/60 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-purple-500/50 transition-all hover:shadow-lg hover:shadow-purple-500/10"
           >
             <div className="flex items-center gap-4 mb-4">
@@ -105,7 +107,7 @@ export default async function DashboardPage() {
 
           {/* 출근 관리 */}
           <Link
-            href="/dashboard/attendance"
+            href="/home"
             className="group bg-slate-800/60 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-green-500/50 transition-all hover:shadow-lg hover:shadow-green-500/10"
           >
             <div className="flex items-center gap-4 mb-4">
@@ -125,7 +127,7 @@ export default async function DashboardPage() {
 
           {/* 급여 관리 */}
           <Link
-            href="/dashboard/payroll"
+            href="/payroll"
             className="group bg-slate-800/60 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-yellow-500/50 transition-all hover:shadow-lg hover:shadow-yellow-500/10"
           >
             <div className="flex items-center gap-4 mb-4">

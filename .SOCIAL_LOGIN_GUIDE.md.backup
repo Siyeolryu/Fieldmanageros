@@ -1,0 +1,1064 @@
+# 🔐 카카오 & 네이버 소셜 로그인 구현 가이드
+
+> 초보자도 쉽게 따라할 수 있는 단계별 가이드입니다.
+> 천천히 하나씩 따라하면 됩니다!
+
+---
+
+## 📋 목차
+
+1. [개요](#개요)
+2. [카카오 로그인 설정](#1단계-카카오-개발자-계정-만들기)
+3. [네이버 로그인 설정](#네이버-로그인-설정)
+4. [Supabase 설정](#supabase-oauth-설정)
+5. [코드 구현](#코드-구현하기)
+6. [테스트](#테스트하기)
+7. [문제 해결](#문제-해결)
+
+---
+
+## 📌 개요
+
+### 이 가이드를 통해 배울 것
+
+- ✅ 카카오톡 계정으로 로그인하기
+- ✅ 네이버 계정으로 로그인하기
+- ✅ 사용자 정보 가져오기 (이름, 이메일, 프로필 사진)
+
+### 필요한 것
+
+- ✅ 카카오 개발자 계정 (무료)
+- ✅ 네이버 개발자 계정 (무료)
+- ✅ Supabase 계정 (이미 있음!)
+- ✅ 인터넷 연결된 컴퓨터
+
+---
+
+## 🟡 카카오 로그인 설정
+
+### 1단계: 카카오 개발자 계정 만들기
+
+#### 1.1 카카오 개발자 센터 접속
+
+1. 웹브라우저를 열고 주소창에 입력하세요:
+   ```
+   https://developers.kakao.com
+   ```
+
+2. 오른쪽 위에 **"로그인"** 버튼을 클릭하세요.
+
+3. 카카오톡 계정으로 로그인하세요.
+   - 카카오톡 앱이 설치되어 있다면: QR 코드로 간편 로그인
+   - 없다면: 이메일과 비밀번호로 로그인
+
+#### 1.2 애플리케이션 등록하기
+
+1. 로그인 후, 상단 메뉴에서 **"내 애플리케이션"**을 클릭하세요.
+
+2. **"애플리케이션 추가하기"** 버튼을 클릭하세요.
+
+3. 다음 정보를 입력하세요:
+   ```
+   앱 이름: 노무Pro (또는 원하는 이름)
+   사업자명: 개인 (또는 회사명)
+   ```
+
+4. **"저장"** 버튼을 클릭하세요.
+
+#### 1.3 앱 키 확인하기 (중요!)
+
+애플리케이션이 생성되면 다음 정보가 보입니다:
+
+```
+REST API 키: 1234567890abcdef1234567890abcdef (예시)
+```
+
+📝 **이 키를 메모장에 복사해두세요!** 나중에 사용합니다.
+
+---
+
+### 2단계: 카카오 로그인 활성화하기
+
+#### 2.1 카카오 로그인 설정
+
+1. 왼쪽 메뉴에서 **"제품 설정"** → **"카카오 로그인"**을 클릭하세요.
+
+2. **"활성화 설정"** 부분에서:
+   - **"카카오 로그인 활성화"** 스위치를 **ON**으로 변경하세요.
+   - 스위치가 파란색으로 바뀌면 성공입니다! ✅
+
+#### 2.2 Redirect URI 설정 (중요!)
+
+1. 같은 페이지에서 아래로 스크롤하여 **"Redirect URI"** 섹션을 찾으세요.
+
+2. **"Redirect URI 등록"** 버튼을 클릭하세요.
+
+3. 다음 두 개의 URI를 **하나씩** 추가하세요:
+
+   **개발용 (로컬 테스트용):**
+   ```
+   http://localhost:3000/auth/callback
+   ```
+
+   **배포용 (실제 서비스용):**
+   ```
+   https://dev3nomu.vercel.app/auth/callback
+   ```
+
+4. 각 URI를 입력하고 **"추가"** 버튼을 누르세요.
+
+5. 두 개의 URI가 모두 등록되었는지 확인하세요.
+
+---
+
+### 3단계: 카카오 동의항목 설정하기
+
+#### 3.1 동의항목이란?
+
+사용자가 로그인할 때 "어떤 정보를 받아올지" 설정하는 것입니다.
+
+#### 3.2 설정 방법
+
+1. 왼쪽 메뉴에서 **"제품 설정"** → **"카카오 로그인"** → **"동의항목"**을 클릭하세요.
+
+2. 다음 항목들을 **"필수 동의"** 또는 **"선택 동의"**로 설정하세요:
+
+   | 항목 | 설정 | 설명 |
+   |------|------|------|
+   | 닉네임 | 필수 동의 | 사용자 이름 |
+   | 프로필 사진 | 선택 동의 | 프로필 이미지 |
+   | 카카오계정(이메일) | 필수 동의 | 로그인용 이메일 |
+
+3. 각 항목 오른쪽의 **"설정"** 버튼을 눌러 동의 단계를 변경하세요.
+
+4. **"저장"** 버튼을 클릭하세요.
+
+---
+
+### 4단계: 카카오 앱 정보 받기
+
+이제 필요한 정보를 모두 모아봅시다!
+
+#### 4.1 필요한 정보 확인
+
+1. 왼쪽 메뉴에서 **"앱 설정"** → **"요약 정보"**를 클릭하세요.
+
+2. 다음 정보를 메모장에 복사하세요:
+
+   ```
+   REST API 키: [여기 표시된 키를 복사]
+   ```
+
+#### 4.2 Client Secret 발급 (선택 사항이지만 권장)
+
+1. 왼쪽 메뉴에서 **"제품 설정"** → **"카카오 로그인"** → **"보안"**을 클릭하세요.
+
+2. **"Client Secret"** 섹션에서:
+   - **"코드 생성"** 버튼을 클릭하세요.
+   - 생성된 코드를 메모장에 복사하세요.
+   - **"활성화"** 상태를 **ON**으로 변경하세요.
+
+📝 **메모장에 저장한 내용:**
+```
+카카오 REST API 키: 1234567890abcdef... (예시)
+카카오 Client Secret: abcdef1234567890... (예시)
+```
+
+---
+
+## 🟢 네이버 로그인 설정
+
+### 1단계: 네이버 개발자 센터 접속
+
+#### 1.1 네이버 개발자 센터 가기
+
+1. 웹브라우저에서 주소창에 입력하세요:
+   ```
+   https://developers.naver.com
+   ```
+
+2. 오른쪽 위 **"로그인"** 버튼을 클릭하세요.
+
+3. 네이버 계정으로 로그인하세요.
+
+---
+
+### 2단계: 네이버 애플리케이션 등록
+
+#### 2.1 애플리케이션 등록 시작
+
+1. 상단 메뉴에서 **"Application"** → **"애플리케이션 등록"**을 클릭하세요.
+
+2. **"애플리케이션 등록(API 이용신청)"** 버튼을 클릭하세요.
+
+#### 2.2 애플리케이션 정보 입력
+
+다음 정보를 입력하세요:
+
+**1. 애플리케이션 이름**
+```
+노무Pro
+```
+
+**2. 사용 API 선택**
+- ✅ **"네이버 로그인"**을 체크하세요.
+
+**3. 제공 정보 선택** (네이버 로그인 체크 후 나타남)
+- ✅ 회원이름
+- ✅ 이메일 주소
+- ✅ 프로필 사진 (선택)
+
+**4. 로그인 오픈 API 서비스 환경**
+
+**PC 웹:**
+- 서비스 URL: `https://dev3nomu.vercel.app`
+
+**PC 웹 - Callback URL (중요!):**
+
+다음 두 개의 URL을 **하나씩** 추가하세요:
+
+```
+개발용: http://localhost:3000/auth/callback
+배포용: https://dev3nomu.vercel.app/auth/callback
+```
+
+💡 **팁:** "추가" 버튼을 눌러 여러 개의 Callback URL을 등록할 수 있습니다.
+
+**5. 등록하기**
+
+모든 정보를 입력했다면 하단의 **"등록하기"** 버튼을 클릭하세요.
+
+---
+
+### 3단계: 네이버 앱 키 확인
+
+#### 3.1 Client ID와 Client Secret 확인
+
+1. 애플리케이션이 등록되면 **"내 애플리케이션"** 페이지로 이동합니다.
+
+2. 방금 등록한 **"노무Pro"** 애플리케이션을 클릭하세요.
+
+3. **"애플리케이션 정보"** 섹션에서 다음 정보를 확인하세요:
+
+   ```
+   Client ID: abcdefghijk (예시)
+   Client Secret: 1234567890 (예시)
+   ```
+
+4. 이 정보를 메모장에 복사하세요!
+
+📝 **메모장에 저장한 내용:**
+```
+네이버 Client ID: abcdefghijk (예시)
+네이버 Client Secret: 1234567890 (예시)
+```
+
+---
+
+## ⚙️ Supabase OAuth 설정
+
+이제 카카오와 네이버에서 받은 키를 Supabase에 등록합니다.
+
+### 1단계: Supabase 대시보드 접속
+
+1. 웹브라우저에서 주소창에 입력하세요:
+   ```
+   https://supabase.com
+   ```
+
+2. 로그인하세요.
+
+3. 프로젝트 목록에서 **"ejgsotsviobjfvfqovcj"** 프로젝트를 클릭하세요.
+
+---
+
+### 2단계: 카카오 OAuth 설정하기
+
+#### 2.1 Authentication 메뉴로 이동
+
+1. 왼쪽 사이드바에서 **"Authentication"** (🔐 자물쇠 아이콘)을 클릭하세요.
+
+2. 하위 메뉴에서 **"Providers"**를 클릭하세요.
+
+#### 2.2 Kakao 프로바이더 활성화
+
+1. 프로바이더 목록에서 **"Kakao"**를 찾아 클릭하세요.
+
+2. 다음 정보를 입력하세요:
+
+   **Kakao enabled:**
+   - 토글 스위치를 **ON** (파란색)으로 변경하세요.
+
+   **Kakao Client ID:**
+   ```
+   [카카오 REST API 키를 붙여넣기]
+   ```
+
+   **Kakao Client Secret:** (선택사항, 하지만 권장)
+   ```
+   [카카오 Client Secret을 붙여넣기]
+   ```
+
+3. **"Save"** 버튼을 클릭하세요.
+
+#### 2.3 Redirect URL 확인
+
+설정을 저장하면 **"Redirect URL"**이 표시됩니다:
+
+```
+https://ejgsotsviobjfvfqovcj.supabase.co/auth/v1/callback
+```
+
+📋 **이 URL을 복사하세요!**
+
+---
+
+### 3단계: 카카오 개발자 센터에 Supabase Redirect URL 추가
+
+#### 3.1 카카오 개발자 센터로 돌아가기
+
+1. 카카오 개발자 센터 (https://developers.kakao.com)를 다시 열어주세요.
+
+2. **"내 애플리케이션"** → **"노무Pro"**를 클릭하세요.
+
+#### 3.2 Redirect URI 추가
+
+1. 왼쪽 메뉴에서 **"제품 설정"** → **"카카오 로그인"**을 클릭하세요.
+
+2. **"Redirect URI"** 섹션에서 **"Redirect URI 등록"** 버튼을 클릭하세요.
+
+3. 아까 복사한 Supabase Redirect URL을 붙여넣으세요:
+   ```
+   https://ejgsotsviobjfvfqovcj.supabase.co/auth/v1/callback
+   ```
+
+4. **"저장"** 버튼을 클릭하세요.
+
+✅ **이제 카카오 로그인 설정이 완료되었습니다!**
+
+---
+
+### 4단계: 네이버 OAuth 설정하기
+
+#### 4.1 Supabase에서 Naver 프로바이더 찾기
+
+**⚠️ 중요한 안내:**
+
+Supabase는 2024년 기준으로 **공식 네이버 OAuth 프로바이더를 제공하지 않습니다.**
+
+하지만 걱정하지 마세요! 다음 두 가지 방법으로 네이버 로그인을 구현할 수 있습니다:
+
+---
+
+#### 방법 1: Supabase Edge Functions 사용 (추천)
+
+Supabase의 서버리스 함수를 사용하여 네이버 OAuth를 직접 구현합니다.
+
+**장점:**
+- ✅ Supabase 생태계 내에서 관리
+- ✅ 보안성 높음
+- ✅ 서버 관리 불필요
+
+**단점:**
+- ⚠️ 코드를 조금 더 작성해야 함
+
+---
+
+#### 방법 2: Next.js API Route 사용 (간단함)
+
+Next.js의 API 라우트를 사용하여 네이버 OAuth 플로우를 구현합니다.
+
+**장점:**
+- ✅ 구현이 더 간단함
+- ✅ Next.js 환경에서 바로 사용
+- ✅ 디버깅 용이
+
+**단점:**
+- ⚠️ Supabase Auth와 완전히 통합되지 않음
+
+---
+
+### 🎯 네이버 로그인 구현 (Next.js API Route 방법)
+
+이 가이드에서는 **방법 2 (Next.js API Route)**를 사용하겠습니다.
+
+---
+
+## 💻 코드 구현하기
+
+이제 실제로 소셜 로그인 버튼을 만들고 작동하게 만들어봅시다!
+
+### 1단계: 환경 변수 추가하기
+
+#### 1.1 .env.local 파일 열기
+
+1. VS Code 또는 에디터에서 `.env.local` 파일을 여세요.
+
+2. 파일의 **맨 아래**에 다음 내용을 추가하세요:
+
+```env
+# ════════ OAuth 소셜 로그인 ════════
+
+# 카카오 로그인
+NEXT_PUBLIC_KAKAO_CLIENT_ID=여기에_카카오_REST_API_키_붙여넣기
+KAKAO_CLIENT_SECRET=여기에_카카오_Client_Secret_붙여넣기
+
+# 네이버 로그인
+NEXT_PUBLIC_NAVER_CLIENT_ID=여기에_네이버_Client_ID_붙여넣기
+NAVER_CLIENT_SECRET=여기에_네이버_Client_Secret_붙여넣기
+NEXT_PUBLIC_NAVER_CALLBACK_URL=http://localhost:3000/auth/callback
+```
+
+#### 1.2 실제 값으로 교체하기
+
+메모장에 저장해둔 키 값들을 복사해서 붙여넣으세요:
+
+**예시:**
+```env
+# 카카오 로그인
+NEXT_PUBLIC_KAKAO_CLIENT_ID=1234567890abcdef1234567890abcdef
+KAKAO_CLIENT_SECRET=abcdef1234567890abcdef1234567890
+
+# 네이버 로그인
+NEXT_PUBLIC_NAVER_CLIENT_ID=abcdefghijk
+NAVER_CLIENT_SECRET=1234567890
+NEXT_PUBLIC_NAVER_CALLBACK_URL=http://localhost:3000/auth/callback
+```
+
+3. **저장(Ctrl + S)** 하세요.
+
+⚠️ **중요:** 환경 변수를 수정했으면 개발 서버를 **재시작**해야 합니다!
+
+터미널에서:
+```bash
+# Ctrl + C로 서버 중지
+# 그리고 다시 실행
+npm run dev
+```
+
+---
+
+### 2단계: 로그인 페이지 만들기
+
+#### 2.1 폴더 구조 확인
+
+다음 경로에 로그인 페이지를 만들겠습니다:
+
+```
+app/
+  auth/
+    login/
+      page.tsx  ← 이 파일을 만듭니다
+```
+
+#### 2.2 로그인 페이지 파일 만들기
+
+**파일:** `app/auth/login/page.tsx`
+
+다음 코드를 복사해서 붙여넣으세요:
+
+```typescript
+'use client'
+
+import { createSupabaseClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+
+export default function LoginPage() {
+  const router = useRouter()
+  const supabase = createSupabaseClient()
+  const [loading, setLoading] = useState<'kakao' | 'naver' | null>(null)
+
+  // 카카오 로그인 함수
+  const handleKakaoLogin = async () => {
+    try {
+      setLoading('kakao')
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'kakao',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        console.error('카카오 로그인 에러:', error)
+        alert('카카오 로그인에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('카카오 로그인 에러:', error)
+      alert('카카오 로그인 중 오류가 발생했습니다.')
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  // 네이버 로그인 함수
+  const handleNaverLogin = () => {
+    setLoading('naver')
+
+    const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID
+    const redirectUri = encodeURIComponent(process.env.NEXT_PUBLIC_NAVER_CALLBACK_URL!)
+    const state = Math.random().toString(36).substring(7)
+
+    // 네이버 로그인 페이지로 이동
+    window.location.href =
+      `https://nid.naver.com/oauth2.0/authorize?` +
+      `response_type=code&` +
+      `client_id=${clientId}&` +
+      `redirect_uri=${redirectUri}&` +
+      `state=${state}`
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+        {/* 로고 영역 */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            노무Pro
+          </h1>
+          <p className="text-gray-600">
+            건설 현장 인건비 신고 & 소득 관리
+          </p>
+        </div>
+
+        {/* 소셜 로그인 버튼들 */}
+        <div className="space-y-3">
+          {/* 카카오 로그인 버튼 */}
+          <button
+            onClick={handleKakaoLogin}
+            disabled={loading !== null}
+            className="w-full bg-[#FEE500] hover:bg-[#FDD835] text-[#000000] font-semibold py-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading === 'kakao' ? (
+              <>
+                <div className="animate-spin h-5 w-5 border-2 border-black border-t-transparent rounded-full" />
+                로그인 중...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 3C6.477 3 2 6.477 2 10.5c0 2.442 1.476 4.617 3.787 6.024l-.853 3.126a.5.5 0 0 0 .723.576l3.627-2.177C10.154 18.35 11.063 18.5 12 18.5c5.523 0 10-3.477 10-7.5S17.523 3 12 3z"/>
+                </svg>
+                카카오로 시작하기
+              </>
+            )}
+          </button>
+
+          {/* 네이버 로그인 버튼 */}
+          <button
+            onClick={handleNaverLogin}
+            disabled={loading !== null}
+            className="w-full bg-[#03C75A] hover:bg-[#02B350] text-white font-semibold py-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading === 'naver' ? (
+              <>
+                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                로그인 중...
+              </>
+            ) : (
+              <>
+                <span className="font-bold text-lg">N</span>
+                네이버로 시작하기
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* 안내 문구 */}
+        <div className="mt-6 text-center text-sm text-gray-500">
+          소셜 로그인을 통해 간편하게 시작하세요
+        </div>
+      </div>
+    </div>
+  )
+}
+```
+
+---
+
+### 3단계: 콜백 페이지 만들기
+
+로그인 후 돌아올 페이지를 만들어야 합니다.
+
+#### 3.1 Supabase 콜백 페이지 (카카오용)
+
+**파일:** `app/auth/callback/route.ts`
+
+```typescript
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  const requestUrl = new URL(request.url)
+  const code = requestUrl.searchParams.get('code')
+  const origin = requestUrl.origin
+
+  if (code) {
+    const supabase = await createSupabaseServerClient()
+
+    // OAuth 코드를 세션으로 교환
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+
+    if (error) {
+      console.error('인증 에러:', error)
+      // 에러 발생 시 로그인 페이지로 리다이렉트
+      return NextResponse.redirect(`${origin}/auth/login?error=${error.message}`)
+    }
+  }
+
+  // 로그인 성공 - 대시보드로 이동
+  return NextResponse.redirect(`${origin}/dashboard`)
+}
+```
+
+#### 3.2 네이버 콜백 처리 API
+
+**파일:** `app/api/auth/naver/callback/route.ts`
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+
+export async function GET(request: NextRequest) {
+  const requestUrl = new URL(request.url)
+  const code = requestUrl.searchParams.get('code')
+  const state = requestUrl.searchParams.get('state')
+
+  if (!code) {
+    return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=no_code`)
+  }
+
+  try {
+    // 1. 네이버 액세스 토큰 받기
+    const tokenResponse = await fetch(
+      `https://nid.naver.com/oauth2.0/token?` +
+      `grant_type=authorization_code&` +
+      `client_id=${process.env.NEXT_PUBLIC_NAVER_CLIENT_ID}&` +
+      `client_secret=${process.env.NAVER_CLIENT_SECRET}&` +
+      `code=${code}&` +
+      `state=${state}`
+    )
+
+    const tokenData = await tokenResponse.json()
+
+    if (!tokenData.access_token) {
+      throw new Error('네이버 액세스 토큰을 받지 못했습니다.')
+    }
+
+    // 2. 네이버 사용자 정보 가져오기
+    const userResponse = await fetch('https://openapi.naver.com/v1/nid/me', {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+      },
+    })
+
+    const userData = await userResponse.json()
+
+    if (userData.resultcode !== '00') {
+      throw new Error('네이버 사용자 정보를 가져오지 못했습니다.')
+    }
+
+    const naverUser = userData.response
+
+    // 3. Supabase에 사용자 생성 또는 로그인
+    const supabase = await createSupabaseServerClient()
+
+    // 이메일로 사용자 확인
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', naverUser.email)
+      .single()
+
+    if (!existingUser) {
+      // 신규 사용자 생성
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: naverUser.email,
+        password: Math.random().toString(36).substring(7), // 임시 비밀번호
+        options: {
+          data: {
+            name: naverUser.name,
+            provider: 'naver',
+            avatar_url: naverUser.profile_image,
+          },
+        },
+      })
+
+      if (signUpError) {
+        throw signUpError
+      }
+    } else {
+      // 기존 사용자 로그인
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: naverUser.email,
+        password: existingUser.password || Math.random().toString(36).substring(7),
+      })
+
+      if (signInError) {
+        // 비밀번호가 맞지 않으면 세션 생성
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token || '',
+        })
+
+        if (sessionError) {
+          throw sessionError
+        }
+      }
+    }
+
+    // 로그인 성공 - 대시보드로 이동
+    return NextResponse.redirect(`${requestUrl.origin}/dashboard`)
+
+  } catch (error) {
+    console.error('네이버 로그인 에러:', error)
+    return NextResponse.redirect(
+      `${requestUrl.origin}/auth/login?error=${encodeURIComponent('네이버 로그인에 실패했습니다.')}`
+    )
+  }
+}
+```
+
+---
+
+### 4단계: 대시보드 페이지 만들기 (선택사항)
+
+로그인 후 이동할 페이지입니다.
+
+**파일:** `app/dashboard/page.tsx`
+
+```typescript
+'use client'
+
+import { createSupabaseClient } from '@/lib/supabase/client'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function DashboardPage() {
+  const router = useRouter()
+  const supabase = createSupabaseClient()
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // 사용자 정보 가져오기
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        // 로그인하지 않은 경우 로그인 페이지로
+        router.push('/auth/login')
+        return
+      }
+
+      setUser(user)
+      setLoading(false)
+    }
+
+    getUser()
+  }, [router, supabase.auth])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        {/* 헤더 */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {user?.user_metadata?.avatar_url && (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt="프로필"
+                  className="w-16 h-16 rounded-full"
+                />
+              )}
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">
+                  안녕하세요, {user?.user_metadata?.name || user?.email}님! 👋
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  노무Pro 대시보드에 오신 것을 환영합니다.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+            >
+              로그아웃
+            </button>
+          </div>
+        </div>
+
+        {/* 사용자 정보 */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">
+            내 정보
+          </h2>
+          <div className="space-y-3">
+            <div className="flex gap-3">
+              <span className="font-semibold text-gray-700 w-24">이메일:</span>
+              <span className="text-gray-600">{user?.email}</span>
+            </div>
+            <div className="flex gap-3">
+              <span className="font-semibold text-gray-700 w-24">이름:</span>
+              <span className="text-gray-600">
+                {user?.user_metadata?.name || '정보 없음'}
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <span className="font-semibold text-gray-700 w-24">로그인:</span>
+              <span className="text-gray-600">
+                {user?.app_metadata?.provider === 'kakao' ? '카카오' :
+                 user?.user_metadata?.provider === 'naver' ? '네이버' : '기타'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+```
+
+---
+
+## 🧪 테스트하기
+
+이제 모든 설정이 끝났습니다! 테스트해봅시다.
+
+### 1단계: 개발 서버 실행
+
+터미널에서:
+
+```bash
+npm run dev
+```
+
+### 2단계: 로그인 페이지 접속
+
+웹브라우저에서:
+
+```
+http://localhost:3000/auth/login
+```
+
+### 3단계: 카카오 로그인 테스트
+
+1. **"카카오로 시작하기"** 버튼을 클릭하세요.
+2. 카카오 로그인 페이지가 열립니다.
+3. 카카오 계정으로 로그인하세요.
+4. 동의 화면에서 **"동의하고 계속하기"**를 클릭하세요.
+5. 자동으로 대시보드로 이동합니다! ✅
+
+### 4단계: 네이버 로그인 테스트
+
+1. 로그아웃하세요.
+2. 다시 로그인 페이지로 이동하세요.
+3. **"네이버로 시작하기"** 버튼을 클릭하세요.
+4. 네이버 로그인 페이지가 열립니다.
+5. 네이버 계정으로 로그인하세요.
+6. 동의 화면에서 **"동의"**를 클릭하세요.
+7. 자동으로 대시보드로 이동합니다! ✅
+
+---
+
+## 🚀 배포하기 (Vercel)
+
+로컬에서 테스트가 성공했다면 이제 배포해봅시다!
+
+### 1단계: Vercel 환경 변수 설정
+
+1. Vercel 대시보드 (https://vercel.com)에 로그인하세요.
+
+2. 프로젝트를 선택하세요.
+
+3. **Settings** → **Environment Variables**로 이동하세요.
+
+4. 다음 환경 변수들을 추가하세요:
+
+   ```
+   NEXT_PUBLIC_KAKAO_CLIENT_ID = [카카오 REST API 키]
+   KAKAO_CLIENT_SECRET = [카카오 Client Secret]
+   NEXT_PUBLIC_NAVER_CLIENT_ID = [네이버 Client ID]
+   NAVER_CLIENT_SECRET = [네이버 Client Secret]
+   NEXT_PUBLIC_NAVER_CALLBACK_URL = https://dev3nomu.vercel.app/auth/callback
+   ```
+
+5. **Save** 버튼을 클릭하세요.
+
+### 2단계: 배포
+
+터미널에서:
+
+```bash
+git add .
+git commit -m "feat: 카카오, 네이버 소셜 로그인 추가"
+git push
+```
+
+Vercel이 자동으로 배포를 시작합니다!
+
+### 3단계: 배포된 사이트 테스트
+
+```
+https://dev3nomu.vercel.app/auth/login
+```
+
+위 주소로 접속해서 소셜 로그인을 테스트하세요!
+
+---
+
+## ❗ 문제 해결
+
+### 문제 1: "Invalid Redirect URI" 에러
+
+**증상:**
+카카오 또는 네이버 로그인 시 "잘못된 Redirect URI" 에러가 발생합니다.
+
+**해결 방법:**
+1. 카카오/네이버 개발자 센터에서 Redirect URI가 정확히 등록되었는지 확인하세요.
+2. Redirect URI에는 **반드시 `https://`** (배포) 또는 **`http://`** (로컬)가 포함되어야 합니다.
+3. 끝에 슬래시(`/`)가 있거나 없는 것도 구분됩니다.
+
+**올바른 예:**
+```
+✅ http://localhost:3000/auth/callback
+✅ https://dev3nomu.vercel.app/auth/callback
+❌ localhost:3000/auth/callback (http:// 없음)
+❌ https://dev3nomu.vercel.app/auth/callback/ (끝에 / 있음)
+```
+
+---
+
+### 문제 2: 환경 변수가 인식되지 않음
+
+**증상:**
+`undefined` 에러가 발생하거나 환경 변수가 읽히지 않습니다.
+
+**해결 방법:**
+1. `.env.local` 파일이 프로젝트 루트에 있는지 확인하세요.
+2. 환경 변수명이 정확한지 확인하세요 (대소문자 구분).
+3. 개발 서버를 **재시작**하세요:
+   ```bash
+   # Ctrl + C로 중지
+   npm run dev
+   ```
+4. Vercel에서는 환경 변수를 추가한 후 **재배포**가 필요합니다.
+
+---
+
+### 문제 3: 카카오 로그인 후 "동의 필요" 화면이 반복됨
+
+**증상:**
+로그인해도 계속 동의 화면이 나타납니다.
+
+**해결 방법:**
+1. 카카오 개발자 센터의 **"동의항목"** 설정을 확인하세요.
+2. 필수 동의 항목이 너무 많으면 문제가 될 수 있습니다.
+3. 비즈 앱 승인을 받지 않은 경우, 일부 정보는 받을 수 없습니다.
+
+---
+
+### 문제 4: 네이버 로그인 후 "resultcode: 024" 에러
+
+**증상:**
+네이버 로그인 시 API 응답에서 에러가 발생합니다.
+
+**해결 방법:**
+1. 네이버 개발자 센터에서 **"회원이름"**과 **"이메일 주소"** 동의 항목이 활성화되어 있는지 확인하세요.
+2. 애플리케이션이 **"검수 중"** 상태가 아닌 **"서비스 적용"** 상태인지 확인하세요.
+3. Callback URL이 정확히 등록되어 있는지 확인하세요.
+
+---
+
+### 문제 5: CORS 에러
+
+**증상:**
+브라우저 콘솔에 CORS 관련 에러가 나타납니다.
+
+**해결 방법:**
+1. Next.js API Route를 사용하고 있는지 확인하세요 (클라이언트에서 직접 호출 X).
+2. `next.config.js`에 다음을 추가하세요:
+
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,OPTIONS' },
+        ],
+      },
+    ]
+  },
+}
+
+module.exports = nextConfig
+```
+
+---
+
+## 📚 추가 참고 자료
+
+### 공식 문서
+
+- **Supabase Auth:** https://supabase.com/docs/guides/auth
+- **카카오 로그인:** https://developers.kakao.com/docs/latest/ko/kakaologin/common
+- **네이버 로그인:** https://developers.naver.com/docs/login/api/
+
+### 유용한 팁
+
+1. **로컬 테스트 시 HTTPS 필요한 경우:**
+   ```bash
+   # mkcert를 사용하여 로컬 HTTPS 인증서 생성
+   npm install -g mkcert
+   mkcert -install
+   mkcert localhost
+   ```
+
+2. **사용자 정보 추가로 받아오기:**
+   - 카카오: 동의항목에서 "카카오계정(전화번호)" 추가
+   - 네이버: 동의항목에서 "휴대전화번호" 추가
+
+3. **로그인 버튼 커스터마이징:**
+   - 카카오: 공식 디자인 가이드 준수 필요
+   - 네이버: 공식 아이콘 사용 권장
+
+---
+
+## 🎉 완료!
+
+축하합니다! 이제 카카오와 네이버 소셜 로그인이 정상적으로 작동합니다!
+
+### 다음 단계
+
+- [ ] 사용자 프로필 페이지 만들기
+- [ ] 회원가입 추가 정보 입력 페이지 만들기
+- [ ] 소셜 계정 연동 관리 기능 추가하기
+
+궁금한 점이 있다면 언제든지 물어보세요! 😊
+
+---
+
+**작성일:** 2026-04-18
+**버전:** 1.0.0
+**작성자:** Claude Code
