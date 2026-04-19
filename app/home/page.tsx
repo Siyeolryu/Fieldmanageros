@@ -39,6 +39,8 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isReportOpen, setIsReportOpen] = useState(false)
   const [isSplitterOpen, setIsSplitterOpen] = useState(false)
+  const [isAddAttendanceOpen, setIsAddAttendanceOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
 
   const fetchStats = async () => {
     if (!selectedSite) return
@@ -85,8 +87,48 @@ export default function HomePage() {
 
           <div className="flex items-center gap-4">
             <SiteSelector />
-            <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden">
-               <span className="text-xs font-bold text-gray-600">{user?.fullName?.[0] || 'U'}</span>
+            <div className="relative">
+              <button
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden hover:bg-gray-200 transition-colors"
+              >
+                <span className="text-xs font-bold text-gray-600">{user?.fullName?.[0] || 'U'}</span>
+              </button>
+
+              {/* Profile Dropdown Menu */}
+              {isProfileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-bold text-gray-900">{user?.fullName || '사용자'}</p>
+                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                  </div>
+                  <Link
+                    href="/dashboard/profile"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                  >
+                    프로필 설정
+                  </Link>
+                  <Link
+                    href="/dashboard"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                  >
+                    대시보드
+                  </Link>
+                  <button
+                    onClick={async () => {
+                      const { createSupabaseClient } = await import('@/lib/supabase/client')
+                      const supabase = createSupabaseClient()
+                      await supabase.auth.signOut()
+                      router.push('/auth/login')
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    로그아웃
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -213,6 +255,85 @@ export default function HomePage() {
         onClose={() => setIsSplitterOpen(false)}
       />
 
+      {/* 출근 기록 추가 모달 */}
+      <Modal
+        isOpen={isAddAttendanceOpen}
+        onClose={() => setIsAddAttendanceOpen(false)}
+        title="출근 기록 추가"
+      >
+        <div className="space-y-6">
+          <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+            <p className="text-sm text-blue-700 font-medium">
+              빠른 출근 기록을 추가하시려면 근로자와 날짜를 선택하세요.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">현장</label>
+              <div className="p-3 bg-gray-50 rounded-xl">
+                <p className="text-sm font-medium text-gray-900">
+                  {selectedSite?.name || '현장을 선택하세요'}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">근로자 선택</label>
+              <select className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option>근로자를 선택하세요</option>
+              </select>
+              <p className="mt-2 text-xs text-gray-500">
+                근로자를 먼저 등록해주세요. <Link href="/workers" className="text-blue-600 hover:underline">근로자 관리 →</Link>
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">날짜</label>
+              <input
+                type="date"
+                defaultValue={new Date().toISOString().split('T')[0]}
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">근무 시간</label>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="time"
+                  defaultValue="08:00"
+                  className="px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="time"
+                  defaultValue="17:00"
+                  className="px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-gray-100 space-y-3">
+            <button
+              onClick={() => {
+                // TODO: API 호출하여 출근 기록 저장
+                setIsAddAttendanceOpen(false)
+              }}
+              className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors"
+            >
+              출근 기록 추가
+            </button>
+            <button
+              onClick={() => setIsAddAttendanceOpen(false)}
+              className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       {/* 하단 탭 바 (모바일) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/90 backdrop-blur-lg border-t border-gray-100 px-6 flex items-center justify-between z-40 pb-safe">
         <Link href="/home" className="flex flex-col items-center gap-1 text-blue-600">
@@ -224,7 +345,10 @@ export default function HomePage() {
           <span className="text-[10px] font-bold">근로자</span>
         </Link>
         <div className="relative -top-6">
-          <button className="w-14 h-14 bg-blue-600 rounded-2xl shadow-lg shadow-blue-300 flex items-center justify-center text-white transform active:scale-90 transition-transform">
+          <button
+            onClick={() => setIsAddAttendanceOpen(true)}
+            className="w-14 h-14 bg-blue-600 rounded-2xl shadow-lg shadow-blue-300 flex items-center justify-center text-white transform active:scale-90 transition-transform hover:bg-blue-700"
+          >
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
           </button>
         </div>
@@ -232,10 +356,10 @@ export default function HomePage() {
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
           <span className="text-[10px] font-bold">대장</span>
         </Link>
-        <button className="flex flex-col items-center gap-1 text-gray-400">
+        <Link href="/dashboard/profile" className="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           <span className="text-[10px] font-bold">설정</span>
-        </button>
+        </Link>
       </div>
     </div>
   )
