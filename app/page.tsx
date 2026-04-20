@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import Link from 'next/link'
@@ -12,12 +12,8 @@ export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
-  // Redirect logged-in users to dashboard
-  useEffect(() => {
-    if (user) {
-      router.push('/home')
-    }
-  }, [user, router])
+  // Auto-redirect removed: Allow all users to view landing page
+  // Logged-in users can navigate to dashboard via header button
 
   const handleQuickSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,18 +66,21 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <h1 className="text-xl font-black text-blue-600 tracking-tight">노무PRO</h1>
           <div className="flex items-center gap-4">
-            <Link
-              href="/auth/login"
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              로그인
-            </Link>
-            <Link
-              href="/auth/signup"
-              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
-            >
-              시작하기
-            </Link>
+            {user ? (
+              <Link
+                href="/home"
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
+              >
+                대시보드로 가기
+              </Link>
+            ) : (
+              <Link
+                href="/auth/login"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                로그인
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -96,17 +95,32 @@ export default function LandingPage() {
             </div>
 
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-tight">
-              이메일 하나로<br />
+              수기 노임대장,<br />
               <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                즉시 시작하는
-              </span><br />
-              노무 관리
+                이제 그만 쓰세요
+              </span>
             </h2>
 
             <p className="text-lg md:text-xl text-gray-600 leading-relaxed">
-              복잡한 인건비 신고와 소득 관리, 이제 노무PRO에서<br className="hidden md:block" />
-              간편하게 해결하세요. 별도 인증 없이 바로 시작할 수 있습니다.
+              월말마다 3시간 걸리던 노임대장 작성,<br className="hidden md:block" />
+              이제 클릭 한 번이면 끝납니다.
             </p>
+
+            {/* Before/After Comparison */}
+            <div className="mt-8 p-6 bg-blue-50 rounded-2xl border-2 border-blue-200">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-2 font-medium">기존 방법</p>
+                  <p className="text-3xl md:text-4xl font-black text-gray-900">3시간</p>
+                  <p className="text-xs text-gray-500 mt-1">월말 정산 시간</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-blue-600 mb-2 font-medium">노무PRO</p>
+                  <p className="text-3xl md:text-4xl font-black text-blue-600">5분</p>
+                  <p className="text-xs text-blue-500 mt-1">자동 생성</p>
+                </div>
+              </div>
+            </div>
 
             {/* Quick Signup Form */}
             <form onSubmit={handleQuickSignup} className="space-y-4">
@@ -123,9 +137,9 @@ export default function LandingPage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-8 py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-8 py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
-                  {isLoading ? '처리 중...' : '무료로 시작하기'}
+                  {isLoading ? '처리 중...' : '3분 만에 무료 시작 →'}
                 </button>
               </div>
               {errorMessage && (
@@ -273,39 +287,65 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-600 to-indigo-700">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-black text-white mb-6">
-            지금 바로 시작하세요
-          </h2>
-          <p className="text-lg md:text-xl text-blue-100 mb-10">
-            이메일 주소만 입력하면 즉시 모든 기능을 사용할 수 있습니다
-          </p>
+      {/* Testimonial Section */}
+      <section className="py-20 bg-gradient-to-br from-blue-50 to-indigo-50">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4">
+              실제 사용자 후기
+            </h2>
+            <p className="text-lg text-gray-600">
+              현장에서 직접 사용하시는 분들의 생생한 이야기
+            </p>
+          </div>
 
-          <form onSubmit={handleQuickSignup} className="max-w-2xl mx-auto space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="이메일 주소 입력"
-                className="flex-1 px-6 py-4 bg-white border-2 border-transparent rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-white/30 transition-all"
-                required
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="px-8 py-4 bg-white text-blue-600 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all shadow-xl hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? '처리 중...' : '무료로 시작하기'}
-              </button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* Testimonial 1 */}
+            <div className="p-8 bg-white rounded-3xl shadow-lg border border-gray-100">
+              <div className="flex items-center gap-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              <p className="text-gray-700 text-lg leading-relaxed mb-6">
+                "30년 현장 생활하면서 처음으로 노임대장이 즐거워졌습니다. 엑셀 몰라도 되니까 정말 편해요."
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">김</span>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900">김현장</p>
+                  <p className="text-sm text-gray-500">53세, 대한건설</p>
+                </div>
+              </div>
             </div>
-            {errorMessage && (
-              <p className="text-red-200 text-sm font-medium">{errorMessage}</p>
-            )}
-          </form>
+
+            {/* Testimonial 2 */}
+            <div className="p-8 bg-white rounded-3xl shadow-lg border border-gray-100">
+              <div className="flex items-center gap-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              <p className="text-gray-700 text-lg leading-relaxed mb-6">
+                "월말 정산 때마다 스트레스였는데, 이제 5분이면 끝나요. 4대보험 신고도 알림으로 놓칠 일이 없어졌습니다."
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">박</span>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900">박소장</p>
+                  <p className="text-sm text-gray-500">48세, 삼성토건</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

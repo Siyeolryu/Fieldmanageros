@@ -8,7 +8,7 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: { id: 'test-user-id', email: 'test@example.com', fullName: '테스트 관리자' }, // 초기 개발용 Mock 데이터
+  user: null, // 실제 인증 후 setUser로 설정됨
   setUser: (user) => set({ user }),
   logout: () => set({ user: null }),
 }))

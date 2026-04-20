@@ -79,7 +79,7 @@ export default function LoginPage() {
 
       if (error) throw error
 
-      router.push('/dashboard')
+      router.push('/home')
       router.refresh()
     } catch (err: any) {
       setError(err.message || '로그인 정보를 다시 확인해주세요.')
@@ -228,7 +228,7 @@ export default function LoginPage() {
           <div className="mt-8 pt-6 border-t border-slate-800 text-center">
             <span className="text-sm text-slate-500">아직 계정이 없으신가요? </span>
             <Link href="/auth/signup" className="text-sm text-amber-500 hover:text-amber-400 font-bold ml-1 hover:underline underline-offset-4 transition-all">
-              현장 관리자 등록
+              회원가입
             </Link>
           </div>
         </div>
