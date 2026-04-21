@@ -268,8 +268,10 @@ export type Database = {
           id: string
           id_number: string | null
           is_active: boolean
+          is_owner: boolean
           name: string
           phone: string | null
+          profile_id: string | null
           site_id: string
           updated_at: string
         }
@@ -281,8 +283,10 @@ export type Database = {
           id?: string
           id_number?: string | null
           is_active?: boolean
+          is_owner?: boolean
           name: string
           phone?: string | null
+          profile_id?: string | null
           site_id: string
           updated_at?: string
         }
@@ -294,12 +298,21 @@ export type Database = {
           id?: string
           id_number?: string | null
           is_active?: boolean
+          is_owner?: boolean
           name?: string
           phone?: string | null
+          profile_id?: string | null
           site_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "workers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "workers_site_id_fkey"
             columns: ["site_id"]
@@ -311,10 +324,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      workers_with_profile: {
+        Row: {
+          bank_account: string | null
+          bank_name: string | null
+          created_at: string
+          hourly_rate: number
+          id: string
+          id_number: string | null
+          is_active: boolean
+          is_owner: boolean
+          is_system_user: boolean
+          name: string
+          phone: string | null
+          profile_email: string | null
+          profile_full_name: string | null
+          profile_id: string | null
+          profile_role: string | null
+          site_id: string
+          updated_at: string
+        }
+      }
     }
     Functions: {
-      [_ in never]: never
+      is_user_worker_in_site: {
+        Args: {
+          user_id: string
+          site_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

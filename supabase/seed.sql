@@ -87,9 +87,23 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
 
   -- ════════ 근로자 ════════
-  INSERT INTO public.workers (id, site_id, name, phone, hourly_rate, bank_name, bank_account, is_active)
+  INSERT INTO public.workers (id, site_id, name, phone, hourly_rate, bank_name, bank_account, is_active, profile_id, is_owner)
   VALUES
     -- 곤지암삼리 현장
+    -- 🎯 Dual-Role 예시: 테스트 관리자 본인도 근로자로 등록 (소규모 팀장)
+    (
+      'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      '33333333-3333-3333-3333-333333333333',
+      '테스트 관리자',
+      '010-0000-0000',
+      250000,
+      '카카오뱅크',
+      '3333-00-000000',
+      TRUE,
+      test_user_id,  -- 프로필과 연결
+      TRUE           -- 현장 소유자
+    ),
+    -- 일반 근로자 (프로필 없음)
     (
       '66666666-6666-6666-6666-666666666666',
       '33333333-3333-3333-3333-333333333333',
@@ -98,7 +112,9 @@ BEGIN
       15000,
       '국민은행',
       '123-456-789012',
-      TRUE
+      TRUE,
+      NULL,   -- 프로필 없음 (시스템 미사용)
+      FALSE   -- 일반 근로자
     ),
     (
       '77777777-7777-7777-7777-777777777777',
@@ -108,7 +124,9 @@ BEGIN
       16000,
       '신한은행',
       '987-654-321098',
-      TRUE
+      TRUE,
+      NULL,
+      FALSE
     ),
     (
       '88888888-8888-8888-8888-888888888888',
@@ -118,7 +136,9 @@ BEGIN
       14500,
       '우리은행',
       '111-222-333444',
-      TRUE
+      TRUE,
+      NULL,
+      FALSE
     ),
     -- 판교 신축현장
     (
@@ -129,7 +149,9 @@ BEGIN
       17000,
       '하나은행',
       '555-666-777888',
-      TRUE
+      TRUE,
+      NULL,
+      FALSE
     ),
     (
       'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -139,11 +161,23 @@ BEGIN
       15500,
       '국민은행',
       '999-000-111222',
-      TRUE
+      TRUE,
+      NULL,
+      FALSE
     )
   ON CONFLICT (id) DO NOTHING;
 
   -- ════════ 출근 기록 (2026년 3월) ════════
+  -- 테스트 관리자 본인 (곤지암삼리) - Dual-Role 예시
+  INSERT INTO public.attendance (worker_id, site_id, date, hours_worked, notes)
+  VALUES
+    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '33333333-3333-3333-3333-333333333333', '2026-03-03', 8.0, '관리 + 작업 병행'),
+    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '33333333-3333-3333-3333-333333333333', '2026-03-04', 6.0, '오전만 작업 (오후 사무)'),
+    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '33333333-3333-3333-3333-333333333333', '2026-03-05', 8.0, '관리 + 작업 병행'),
+    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '33333333-3333-3333-3333-333333333333', '2026-03-06', 8.0, '관리 + 작업 병행'),
+    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '33333333-3333-3333-3333-333333333333', '2026-03-07', 8.0, '관리 + 작업 병행')
+  ON CONFLICT (worker_id, site_id, date) DO NOTHING;
+
   -- 홍길동 (곤지암삼리)
   INSERT INTO public.attendance (worker_id, site_id, date, hours_worked, notes)
   VALUES
@@ -188,8 +222,9 @@ BEGIN
   RAISE NOTICE '✅ 샘플 데이터 삽입 완료';
   RAISE NOTICE '- 건설사: 2개';
   RAISE NOTICE '- 현장: 3개';
-  RAISE NOTICE '- 근로자: 5명';
-  RAISE NOTICE '- 출근 기록: 25건';
+  RAISE NOTICE '- 근로자: 6명 (팀장 본인 1명 포함)';
+  RAISE NOTICE '- 출근 기록: 30건';
+  RAISE NOTICE '🎯 Dual-Role 예시: 테스트 관리자가 곤지암삼리 현장에 근로자로도 등록됨';
 
 END $$;
 
