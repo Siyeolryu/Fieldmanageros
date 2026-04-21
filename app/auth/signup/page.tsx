@@ -5,12 +5,15 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createSupabaseClient } from '@/lib/supabase/client'
 
+type UserType = 'manager' | 'both' | 'worker'
+
 export default function SignupPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [companyName, setCompanyName] = useState('')
+  const [userType, setUserType] = useState<UserType>('both')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -42,6 +45,7 @@ export default function SignupPage() {
         options: {
           data: {
             company_name: companyName,
+            user_type: userType,
           },
         },
       })
@@ -51,10 +55,16 @@ export default function SignupPage() {
       if (data.user) {
         setSuccess(true)
 
-        // 3초 후 로그인 페이지로 이동
+        // userType에 따라 다른 페이지로 이동
         setTimeout(() => {
-          router.push('/auth/login')
-        }, 3000)
+          if (userType === 'both' || userType === 'worker') {
+            // 근로자 정보 입력 필요
+            router.push(`/onboarding/profile?type=${userType}`)
+          } else {
+            // 관리자만 선택한 경우 바로 로그인 페이지
+            router.push('/auth/login')
+          }
+        }, 2000)
       }
     } catch (err: any) {
       setError(err.message || '회원가입에 실패했습니다.')
@@ -135,6 +145,70 @@ export default function SignupPage() {
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                 placeholder="회사명을 입력하세요"
               />
+            </div>
+
+            {/* 역할 선택 */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-3">
+                주요 역할을 선택해주세요
+              </label>
+              <div className="space-y-3">
+                <label className="flex items-start p-4 bg-slate-900/30 border border-slate-700 rounded-lg cursor-pointer hover:bg-slate-900/50 transition-colors">
+                  <input
+                    type="radio"
+                    name="userType"
+                    value="manager"
+                    checked={userType === 'manager'}
+                    onChange={(e) => setUserType(e.target.value as UserType)}
+                    className="mt-1 w-4 h-4 text-sky-500 bg-slate-900 border-slate-600 focus:ring-sky-500 focus:ring-2"
+                  />
+                  <div className="ml-3 flex-1">
+                    <span className="block text-white font-medium">관리자만</span>
+                    <span className="block text-sm text-slate-400 mt-1">현장 운영 및 인력 관리만 담당 (직접 작업 안 함)</span>
+                  </div>
+                </label>
+
+                <label className="flex items-start p-4 bg-slate-900/30 border-2 border-sky-500/50 rounded-lg cursor-pointer hover:bg-slate-900/50 transition-colors">
+                  <input
+                    type="radio"
+                    name="userType"
+                    value="both"
+                    checked={userType === 'both'}
+                    onChange={(e) => setUserType(e.target.value as UserType)}
+                    className="mt-1 w-4 h-4 text-sky-500 bg-slate-900 border-slate-600 focus:ring-sky-500 focus:ring-2"
+                  />
+                  <div className="ml-3 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="block text-white font-medium">관리자 + 근로자</span>
+                      <span className="px-2 py-0.5 bg-sky-500/20 text-sky-400 text-xs font-bold rounded">추천</span>
+                    </div>
+                    <span className="block text-sm text-slate-400 mt-1">현장을 운영하면서 직접 작업도 투입 (소규모 팀장)</span>
+                  </div>
+                </label>
+
+                <label className="flex items-start p-4 bg-slate-900/30 border border-slate-700 rounded-lg cursor-pointer hover:bg-slate-900/50 transition-colors">
+                  <input
+                    type="radio"
+                    name="userType"
+                    value="worker"
+                    checked={userType === 'worker'}
+                    onChange={(e) => setUserType(e.target.value as UserType)}
+                    className="mt-1 w-4 h-4 text-sky-500 bg-slate-900 border-slate-600 focus:ring-sky-500 focus:ring-2"
+                  />
+                  <div className="ml-3 flex-1">
+                    <span className="block text-white font-medium">근로자만</span>
+                    <span className="block text-sm text-slate-400 mt-1">다른 팀의 근로자로 등록됨</span>
+                  </div>
+                </label>
+              </div>
+
+              {userType === 'both' && (
+                <div className="mt-3 p-3 bg-sky-500/10 border border-sky-500/30 rounded-lg">
+                  <p className="text-xs text-sky-300">
+                    <span className="font-bold">💡 안내:</span> 관리자+근로자를 선택하시면 현장을 만들고 다른 근로자를 관리할 수 있으며, 본인의 출퇴근과 급여도 기록할 수 있습니다.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>
