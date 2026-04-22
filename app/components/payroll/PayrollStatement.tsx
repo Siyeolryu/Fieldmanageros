@@ -21,19 +21,30 @@ interface PayrollStatementProps {
     worker?: {
       name: string
       phone?: string
+      isOwner?: boolean      // Phase 5: 현장 소유자 여부
+      profileId?: string     // Phase 5: 프로필 연결
     }
   }
   workerName?: string
+  isOwner?: boolean  // Phase 5: 본인 급여인 경우 세무 안내 표시
 }
 
-export default function PayrollStatement({ payroll, workerName }: PayrollStatementProps) {
+export default function PayrollStatement({ payroll, workerName, isOwner }: PayrollStatementProps) {
   const displayName = workerName || payroll.worker?.name || '근로자'
+  const isOwnerPayroll = isOwner || payroll.worker?.isOwner
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
       {/* 헤더 */}
       <div className="border-b border-gray-200 pb-4">
-        <h2 className="text-2xl font-bold text-gray-900 mb-1">급여 명세서</h2>
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-2xl font-bold text-gray-900">급여 명세서</h2>
+          {isOwnerPayroll && (
+            <span className="px-2 py-1 bg-sky-600 text-white text-xs font-bold rounded-lg">
+              본인 급여
+            </span>
+          )}
+        </div>
         <div className="flex items-center justify-between text-sm">
           <p className="text-gray-600">
             <span className="font-semibold">{displayName}</span>
@@ -159,6 +170,39 @@ export default function PayrollStatement({ payroll, workerName }: PayrollStateme
           </span>
         </div>
       </div>
+
+      {/* Phase 5: 본인 급여 세무 안내 */}
+      {isOwnerPayroll && (
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+              <h4 className="font-bold text-amber-900 text-sm mb-2">본인 급여 세무 처리 안내</h4>
+              <div className="text-xs text-amber-800 space-y-1.5">
+                <p className="flex items-start gap-2">
+                  <span className="font-bold flex-shrink-0">•</span>
+                  <span><strong>원천징수:</strong> 약 {Math.floor(payroll.income_tax * 0.9).toLocaleString()}원 (다음 달 10일까지 신고)</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="font-bold flex-shrink-0">•</span>
+                  <span><strong>4대보험:</strong> 건강보험, 국민연금, 산재보험만 해당 (고용보험 제외)</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="font-bold flex-shrink-0">•</span>
+                  <span><strong>종합소득세:</strong> 5월에 사업소득과 합산 신고 필요</span>
+                </p>
+              </div>
+              <div className="mt-3 pt-3 border-t border-amber-200">
+                <p className="text-xs text-amber-700">
+                  💡 자세한 사항은 세무사와 상담하거나 <strong>국세청 126번</strong>으로 문의하세요.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 안내 문구 */}
       <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500">

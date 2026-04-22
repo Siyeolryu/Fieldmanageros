@@ -13,6 +13,8 @@ interface Worker {
   bank_name?: string | null
   bank_account?: string | null
   hourly_rate: number
+  profile_id?: string | null  // Phase 2: 프로필 연결
+  is_owner: boolean           // Phase 2: 현장 소유자 여부
   is_active: boolean
   created_at?: string
   updated_at?: string
@@ -26,6 +28,7 @@ const WorkerList: React.FC<WorkerListProps> = ({ onEdit }) => {
   const { selectedSite } = useAppStore()
   const [workers, setWorkers] = useState<Worker[]>([])
   const [loading, setLoading] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   const fetchWorkers = async () => {
     if (!selectedSite) return
@@ -45,6 +48,17 @@ const WorkerList: React.FC<WorkerListProps> = ({ onEdit }) => {
 
   useEffect(() => {
     fetchWorkers()
+
+    // Phase 5: 현재 사용자 정보 가져오기
+    const fetchCurrentUser = async () => {
+      const { createSupabaseClient } = await import('@/lib/supabase/client')
+      const supabase = createSupabaseClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setCurrentUserId(user.id)
+      }
+    }
+    fetchCurrentUser()
 
     // Real-time 업데이트 구독
     if (!selectedSite) return
@@ -126,40 +140,66 @@ const WorkerList: React.FC<WorkerListProps> = ({ onEdit }) => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {workers.map((worker) => (
-            <div
-              key={worker.id}
-              className={`p-5 bg-white rounded-3xl border transition-all ${worker.is_active ? 'border-gray-100' : 'border-gray-200 opacity-60'}`}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 font-black text-lg">
-                    {worker.name[0]}
+          {workers.map((worker) => {
+            // Phase 5: 본인 여부 확인
+            const isMyself = worker.profile_id === currentUserId
+            const isOwner = worker.is_owner
+
+            return (
+              <div
+                key={worker.id}
+                className={`p-5 rounded-3xl border-2 transition-all ${
+                  isMyself
+                    ? 'bg-sky-50/50 border-sky-300'
+                    : worker.is_active
+                      ? 'bg-white border-gray-100'
+                      : 'bg-white border-gray-200 opacity-60'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg ${
+                      isMyself ? 'bg-sky-600 text-white' : 'bg-blue-50 text-blue-600'
+                    }`}>
+                      {worker.name[0]}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-black text-gray-900 leading-tight">{worker.name}</p>
+                        {isMyself && (
+                          <span className="px-2 py-0.5 bg-sky-600 text-white text-[10px] font-bold rounded-full">
+                            본인
+                          </span>
+                        )}
+                        {isOwner && (
+                          <span className="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-full">
+                            관리자
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs font-bold text-gray-400 tracking-wider">
+                        {worker.phone || '연락처 없음'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(worker)} className="h-8 min-h-0 text-xs font-bold">수정</Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-50">
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">시급</p>
+                    <p className="font-bold text-gray-900 text-sm">{worker.hourly_rate.toLocaleString()}원</p>
                   </div>
                   <div>
-                    <p className="font-black text-gray-900 leading-tight">{worker.name}</p>
-                    <p className="text-xs font-bold text-gray-400 tracking-wider">
-                      {worker.phone || '연락처 없음'}
-                    </p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">은행</p>
+                    <p className="font-bold text-gray-900 text-sm truncate">{worker.bank_name || '-'} {worker.bank_account || ''}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => onEdit(worker)} className="h-8 min-h-0 text-xs font-bold">수정</Button>
-                </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-50">
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">시급</p>
-                  <p className="font-bold text-gray-900 text-sm">{worker.hourly_rate.toLocaleString()}원</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">은행</p>
-                  <p className="font-bold text-gray-900 text-sm truncate">{worker.bank_name || '-'} {worker.bank_account || ''}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

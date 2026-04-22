@@ -9,6 +9,7 @@ interface BulkAttendanceFormProps {
   workers: Worker[]
   date: Date
   siteId: string
+  currentUserId?: string  // Phase 5: 현재 사용자 ID
   onSuccess: () => void
   onCancel: () => void
 }
@@ -17,6 +18,7 @@ const BulkAttendanceForm: React.FC<BulkAttendanceFormProps> = ({
   workers,
   date,
   siteId,
+  currentUserId,
   onSuccess,
   onCancel
 }) => {
@@ -83,23 +85,46 @@ const BulkAttendanceForm: React.FC<BulkAttendanceFormProps> = ({
       </div>
 
       <div className="grid grid-cols-2 gap-3 max-h-[30vh] overflow-y-auto pr-2">
-        {workers.map(worker => (
-          <label 
-            key={worker.id}
-            className={`
-              flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer
-              ${selectedWorkerIds.includes(worker.id) ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}
-            `}
-          >
-            <input 
-              type="checkbox" 
-              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              checked={selectedWorkerIds.includes(worker.id)}
-              onChange={() => toggleWorker(worker.id)}
-            />
-            <span className="font-bold text-gray-900 truncate">{worker.name}</span>
-          </label>
-        ))}
+        {workers.map(worker => {
+          // Phase 5: 본인 여부 확인
+          const isMyself = worker.profileId === currentUserId
+          const isOwner = worker.isOwner
+
+          return (
+            <label
+              key={worker.id}
+              className={`
+                flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer
+                ${selectedWorkerIds.includes(worker.id)
+                  ? 'border-blue-600 bg-blue-50'
+                  : isMyself
+                    ? 'border-sky-300 bg-sky-50/50 hover:border-sky-400'
+                    : 'border-gray-100 hover:border-gray-200'
+                }
+              `}
+            >
+              <input
+                type="checkbox"
+                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                checked={selectedWorkerIds.includes(worker.id)}
+                onChange={() => toggleWorker(worker.id)}
+              />
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="font-bold text-gray-900 truncate">{worker.name}</span>
+                {isMyself && (
+                  <span className="px-1.5 py-0.5 bg-sky-600 text-white text-[9px] font-bold rounded-full flex-shrink-0">
+                    본인
+                  </span>
+                )}
+                {isOwner && (
+                  <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full flex-shrink-0">
+                    관리자
+                  </span>
+                )}
+              </div>
+            </label>
+          )
+        })}
       </div>
 
       <div className="space-y-4 pt-4 border-t">
