@@ -10,6 +10,7 @@ import CostChart from '@/app/components/dashboard/CostChart'
 import Modal from '@/app/components/ui/Modal'
 import RiskRadar from '@/app/components/dashboard/RiskRadar'
 import CostSplitterModal from '@/app/components/dashboard/CostSplitterModal'
+import TaxNotification from '@/app/components/dashboard/TaxNotification'
 
 export default function HomePage() {
   const router = useRouter()
@@ -140,6 +141,12 @@ export default function HomePage() {
 
           {/* 좌측 요약 정보 */}
           <div className="lg:col-span-4 space-y-6">
+            {/* Phase 6: 세무 알림 */}
+            <TaxNotification
+              workerCount={stats.totalWorkers}
+              ownerIncluded={true}
+            />
+
             <div className={`p-6 bg-white rounded-3xl shadow-sm border border-gray-100 transition-opacity ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
               <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">현재 현장 현황</h3>
               <div className="space-y-1 mb-6">

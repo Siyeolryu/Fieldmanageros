@@ -6,7 +6,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Button from '@/app/components/ui/Button'
+import Tooltip from '@/app/components/ui/Tooltip'
 import { Site, Company } from '@prisma/client'
+import Link from 'next/link'
 
 const siteSchema = z.object({
   name: z.string().min(1, '현장명을 입력해주세요.'),
@@ -205,10 +207,30 @@ export default function SiteForm({ initialData, companies, isEdit = false, userP
                   <p>• 은행: {userProfile.bank_name || '(미입력)'}</p>
                   <p>• 계좌: {userProfile.bank_account || '(미입력)'}</p>
                 </div>
-                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-xs text-amber-800">
-                    <span className="font-bold">💡 세무 안내:</span> 본인 급여 지급 시 원천징수 신고가 필요하며, 4대보험 신고 대상입니다 (고용보험 제외).
-                  </p>
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-xs text-amber-800 flex-1">
+                      <span className="font-bold">💡 세무 안내:</span> 본인 급여 지급 시 원천징수 신고가 필요하며, 4대보험 신고 대상입니다 (고용보험 제외).
+                    </span>
+                    <Tooltip content="자세한 세무 정보는 가이드를 참고하세요" position="left">
+                      <Link
+                        href="/help/tax-guide"
+                        target="_blank"
+                        className="flex-shrink-0 text-amber-700 hover:text-amber-900"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                      </Link>
+                    </Tooltip>
+                  </div>
+                  <Link
+                    href="/help/tax-guide"
+                    target="_blank"
+                    className="text-xs text-amber-700 hover:text-amber-900 font-semibold hover:underline inline-block"
+                  >
+                    → 건설업 세무 가이드 보기
+                  </Link>
                 </div>
               </div>
             )}

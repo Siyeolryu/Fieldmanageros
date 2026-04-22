@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Tooltip from '../ui/Tooltip'
 
 interface PayrollStatementProps {
   payroll: {
@@ -132,14 +133,28 @@ export default function PayrollStatement({ payroll, workerName, isOwner }: Payro
             </div>
           )}
 
-          {payroll.employment_insurance > 0 && (
+          {payroll.employment_insurance > 0 ? (
             <div className="flex items-center justify-between py-1">
               <span className="text-xs text-gray-600">고용보험 (0.9%)</span>
               <span className="text-sm font-semibold text-red-600">
                 -{payroll.employment_insurance.toLocaleString()}원
               </span>
             </div>
-          )}
+          ) : isOwnerPayroll ? (
+            <div className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-400 line-through">고용보험 (0.9%)</span>
+                <Tooltip content="사업자이면서 자신에게 급여를 주는 경우, 고용보험은 가입 대상이 아닙니다.">
+                  <svg className="w-4 h-4 text-blue-500 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                </Tooltip>
+              </div>
+              <span className="text-sm font-semibold text-gray-400">
+                제외
+              </span>
+            </div>
+          ) : null}
 
           {payroll.income_tax > 0 && (
             <div className="flex items-center justify-between py-1">
