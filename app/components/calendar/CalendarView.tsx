@@ -39,7 +39,21 @@ const CalendarView: React.FC = () => {
   
   // 근로자 데이터
   const [workers, setWorkers] = useState<any[]>([])
-  
+  const [currentUserId, setCurrentUserId] = useState<string>()  // Phase 5
+
+  // Phase 5: 현재 사용자 정보 가져오기
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const { createSupabaseClient } = await import('@/lib/supabase/client')
+      const supabase = createSupabaseClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setCurrentUserId(user.id)
+      }
+    }
+    fetchCurrentUser()
+  }, [])
+
   // 데이터 로딩 로직 (함수로 분리하여 새로고침 가능하게 함)
   const fetchData = async () => {
     if (!selectedSite) return;
@@ -233,10 +247,11 @@ const CalendarView: React.FC = () => {
           onClose={() => setIsBulkModalOpen(false)}
           title="일괄 출근 등록"
         >
-          <BulkAttendanceForm 
+          <BulkAttendanceForm
             workers={workers}
             date={selectedDate}
             siteId={selectedSite?.id || ''}
+            currentUserId={currentUserId}
             onSuccess={() => {
               setIsBulkModalOpen(false)
               fetchData()
