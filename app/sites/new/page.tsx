@@ -21,6 +21,13 @@ export default async function NewSitePage() {
     console.error('Error fetching companies:', error)
   }
 
+  // Phase 4: 사용자 프로필 정보 가져오기 (본인 포함 옵션용)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('user_type, full_name, hourly_rate, bank_name, bank_account')
+    .eq('id', user.id)
+    .single()
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
       <div className="mb-12">
@@ -34,7 +41,7 @@ export default async function NewSitePage() {
 
       <div className="flex flex-col md:flex-row gap-12">
         <div className="flex-1">
-          <SiteForm companies={companies || []} />
+          <SiteForm companies={companies || []} userProfile={profile || undefined} />
         </div>
         
         <div className="hidden lg:block w-72 space-y-6">

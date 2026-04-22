@@ -10,6 +10,7 @@ const siteSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   isActive: z.boolean().default(true),
+  includeMyself: z.boolean().default(false),
 })
 
 // GET /api/sites - 현장 목록 조회 (건설사 ID 필터링 가능)
@@ -107,6 +108,43 @@ export async function POST(request: Request) {
       .single()
 
     if (error) throw error
+
+    // Phase 4: 본인을 근로자로 포함하는 경우
+    if (validatedData.includeMyself) {
+      // 사용자 프로필 정보 조회
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, user_type, hourly_rate, bank_name, bank_account')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError) {
+        console.error('Error fetching profile:', profileError)
+        throw new Error('프로필 정보를 불러올 수 없습니다.')
+      }
+
+      // user_type이 'both' 또는 'worker'이고 hourly_rate가 있는 경우만 근로자 등록
+      if ((profile.user_type === 'both' || profile.user_type === 'worker') && profile.hourly_rate) {
+        const { error: workerError } = await supabase
+          .from('workers')
+          .insert({
+            site_id: site.id,
+            name: profile.full_name || '(이름 미입력)',
+            profile_id: profile.id,
+            is_owner: true,
+            hourly_rate: profile.hourly_rate,
+            bank_name: profile.bank_name || null,
+            bank_account: profile.bank_account || null,
+            is_active: true,
+          })
+
+        if (workerError) {
+          console.error('Error creating worker:', workerError)
+          // 근로자 등록 실패 시 경고만 하고 현장 생성은 성공으로 처리
+          // (현장은 이미 생성되었으므로)
+        }
+      }
+    }
 
     return NextResponse.json(site, { status: 201 })
   } catch (error) {

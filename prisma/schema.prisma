@@ -16,16 +16,21 @@ datasource db {
 // ════════════════════════════════════════
 
 model Profile {
-  id        String   @id @db.Uuid
-  email     String   @unique
-  fullName  String?  @map("full_name")
-  role      String   @default("manager") // admin, manager, viewer
-  avatarUrl String?  @map("avatar_url")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id          String   @id @db.Uuid
+  email       String   @unique
+  fullName    String?  @map("full_name")
+  role        String   @default("manager") // admin, manager, viewer
+  avatarUrl   String?  @map("avatar_url")
+  userType    String   @default("manager") @map("user_type") // manager, both, worker
+  hourlyRate  Int?     @map("hourly_rate") // 시급 (원)
+  bankName    String?  @map("bank_name")
+  bankAccount String?  @map("bank_account")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // Relations
   companies Company[]
+  workers   Worker[]  @relation("ProfileWorker")
 
   @@map("profiles")
 }
@@ -88,12 +93,15 @@ model Worker {
   bankName    String?  @map("bank_name")
   bankAccount String?  @map("bank_account")
   hourlyRate  Int      @map("hourly_rate") // 시급 (원)
+  profileId   String?  @map("profile_id") @db.Uuid // Phase 2: 프로필 연결 (팀장 본인 등)
+  isOwner     Boolean  @default(false) @map("is_owner") // Phase 2: 현장 소유자 여부
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // Relations
   site       Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  profile    Profile?     @relation("ProfileWorker", fields: [profileId], references: [id], onDelete: SetNull)
   attendance Attendance[]
   payroll    Payroll[]
 
