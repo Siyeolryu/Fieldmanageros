@@ -1,19 +1,55 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import Link from 'next/link'
+import { createSupabaseClient } from '@/lib/supabase/client'
 
 export default function LandingPage() {
   const router = useRouter()
-  const { user } = useAuthStore()
+  const { user, setUser } = useAuthStore()
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      const supabase = createSupabaseClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUser({ 
+          id: user.id, 
+          email: user.email!, 
+          fullName: user.user_metadata?.full_name 
+        })
+      }
+    }
+    fetchUser()
+  }, [setUser])
+
   // Auto-redirect removed: Allow all users to view landing page
   // Logged-in users can navigate to dashboard via header button
+
+  const handleSocialLogin = async (provider: 'kakao' | 'naver') => {
+    setIsLoading(true)
+    setErrorMessage('')
+
+    try {
+      const supabase = createSupabaseClient()
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider as any,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) throw error
+    } catch (err: any) {
+      setErrorMessage(err.message || '소셜 서버 통신 중 오류가 발생했습니다.')
+      setIsLoading(false)
+    }
+  }
 
   const handleQuickSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,7 +85,11 @@ export default function LandingPage() {
           router.push('/auth/login')
         }
       } else {
-        setErrorMessage(data.error || '가입 중 오류가 발생했습니다')
+        if (res.status === 409) {
+          setErrorMessage('이미 가입된 이메일입니다. 아래 로그인 버튼을 이용해주세요.')
+        } else {
+          setErrorMessage(data.error || '가입 중 오류가 발생했습니다')
+        }
       }
     } catch (error) {
       console.error('Quick signup error:', error)
@@ -145,8 +185,41 @@ export default function LandingPage() {
               {errorMessage && (
                 <p className="text-red-600 text-sm font-medium">{errorMessage}</p>
               )}
+
+              {/* Social Login Section */}
+              <div className="pt-4">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="h-px flex-1 bg-gray-200" />
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">간편 로그인</span>
+                  <div className="h-px flex-1 bg-gray-200" />
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => handleSocialLogin('kakao')}
+                    disabled={isLoading}
+                    className="flex-1 flex items-center justify-center gap-3 px-6 py-3.5 bg-[#FEE500] text-[#3c1e1e] font-bold rounded-xl hover:brightness-95 transition-all disabled:opacity-50"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 3c5.799 0 10.5 3.664 10.5 8.185 0 4.52-4.701 8.184-10.5 8.184a13.5 13.5 0 0 1-1.727-.11l-4.408 2.883c-.501.265-.678.236-.472-.413l.892-3.678c-2.88-1.46-4.785-3.99-4.785-6.866C1.5 6.665 6.201 3 12 3z" />
+                    </svg>
+                    카카오 로그인
+                  </button>
+                  <button
+                    onClick={() => handleSocialLogin('naver')}
+                    disabled={isLoading}
+                    className="flex-1 flex items-center justify-center gap-3 px-6 py-3.5 bg-[#03C75A] text-white font-bold rounded-xl hover:brightness-95 transition-all disabled:opacity-50"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M16.273 12.845 7.376 0H0v24h7.726V11.156L16.624 24H24V0h-7.727v12.845z" />
+                    </svg>
+                    네이버 로그인
+                  </button>
+                </div>
+              </div>
+
               <p className="text-sm text-gray-500">
-                가입 즉시 모든 기능을 사용할 수 있습니다. 신용카드 불필요.
+                기존 계정이 있으신가요? <Link href="/auth/login" className="text-blue-600 font-bold hover:underline">비밀번호로 로그인</Link>
               </p>
             </form>
 
