@@ -15,6 +15,7 @@ const siteSchema = z.object({
   startDate: z.string().optional().or(z.literal('')),
   endDate: z.string().optional().or(z.literal('')),
   isActive: z.boolean().default(true),
+  includeMyself: z.boolean().default(false),
 })
 
 type SiteFormValues = z.infer<typeof siteSchema>
@@ -23,15 +24,29 @@ interface SiteFormProps {
   initialData?: Partial<Site>
   companies: Company[]
   isEdit?: boolean
+  userProfile?: {
+    user_type: string
+    full_name: string | null
+    hourly_rate: number | null
+    bank_name: string | null
+    bank_account: string | null
+  }
 }
 
-export default function SiteForm({ initialData, companies, isEdit = false }: SiteFormProps) {
+export default function SiteForm({ initialData, companies, isEdit = false, userProfile }: SiteFormProps) {
   const router = useRouter()
   const [errorMsg, setErrorMsg] = useState('')
+
+  // user_type이 'both' 또는 'worker'이고 근로자 정보가 있는 경우만 본인 포함 옵션 표시
+  const canIncludeMyself = userProfile &&
+    (userProfile.user_type === 'both' || userProfile.user_type === 'worker') &&
+    userProfile.hourly_rate &&
+    userProfile.hourly_rate > 0
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<SiteFormValues>({
     resolver: zodResolver(siteSchema),
@@ -42,8 +57,11 @@ export default function SiteForm({ initialData, companies, isEdit = false }: Sit
       startDate: initialData?.startDate ? new Date(initialData.startDate).toISOString().split('T')[0] : '',
       endDate: initialData?.endDate ? new Date(initialData.endDate).toISOString().split('T')[0] : '',
       isActive: initialData?.isActive ?? true,
+      includeMyself: false,
     },
   })
+
+  const includeMyselfValue = watch('includeMyself')
 
   const onSubmit = async (data: SiteFormValues) => {
     setErrorMsg('')
@@ -157,6 +175,45 @@ export default function SiteForm({ initialData, companies, isEdit = false }: Sit
             현재 진행 중인 현장으로 활성화
           </label>
         </div>
+
+        {/* Phase 4: 본인 포함 옵션 */}
+        {!isEdit && canIncludeMyself && (
+          <div className="mt-6 p-6 bg-sky-50/50 border-2 border-sky-200 rounded-2xl space-y-4">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="includeMyself"
+                className="mt-1 w-5 h-5 text-sky-600 border-gray-300 rounded focus:ring-sky-500"
+                {...register('includeMyself')}
+              />
+              <div className="flex-1">
+                <label htmlFor="includeMyself" className="block text-sm font-bold text-sky-900 cursor-pointer">
+                  이 현장에 본인도 작업자로 투입
+                </label>
+                <p className="text-xs text-sky-700 mt-1">
+                  팀장이면서 직접 작업도 하시는 경우 선택하세요. 출퇴근 기록 및 급여 계산에 포함됩니다.
+                </p>
+              </div>
+            </div>
+
+            {includeMyselfValue && userProfile && (
+              <div className="pl-8 pt-3 border-t border-sky-200 space-y-2">
+                <p className="text-sm text-sky-900 font-medium">등록될 정보:</p>
+                <div className="text-xs text-sky-700 space-y-1">
+                  <p>• 이름: {userProfile.full_name || '(미입력)'}</p>
+                  <p>• 시급: {userProfile.hourly_rate?.toLocaleString()}원</p>
+                  <p>• 은행: {userProfile.bank_name || '(미입력)'}</p>
+                  <p>• 계좌: {userProfile.bank_account || '(미입력)'}</p>
+                </div>
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs text-amber-800">
+                    <span className="font-bold">💡 세무 안내:</span> 본인 급여 지급 시 원천징수 신고가 필요하며, 4대보험 신고 대상입니다 (고용보험 제외).
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-4 pt-6">
