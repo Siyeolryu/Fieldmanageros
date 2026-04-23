@@ -13,7 +13,14 @@
     "db:test-supabase": "tsx scripts/test-supabase.ts",
     "db:migrate": "tsx scripts/run-migrations.ts",
     "db:verify": "tsx scripts/verify-setup.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:accessibility": "playwright test tests/e2e/accessibility.spec.ts",
+    "test:mobile": "playwright test tests/e2e/mobile-responsive.spec.ts",
+    "test:dual-role": "playwright test tests/e2e/dual-role.spec.ts",
+    "test:report": "playwright show-report"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -32,6 +39,8 @@
     "zustand": "^4.5.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.2",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^20",
     "@types/react": "^18",
