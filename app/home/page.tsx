@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import CalendarView from '@/app/components/calendar/CalendarView'
 import SiteSelector from '@/app/components/ui/SiteSelector'
 import { useAppStore, useAuthStore } from '@/lib/store'
@@ -15,7 +16,7 @@ import TaxNotification from '@/app/components/dashboard/TaxNotification'
 export default function HomePage() {
   const router = useRouter()
   const { selectedSite } = useAppStore()
-  const { user } = useAuthStore()
+  const { user, activeRole, setActiveRole } = useAuthStore()
 
   // Auth check - redirect to landing page if not authenticated
   useEffect(() => {
@@ -98,6 +99,28 @@ export default function HomePage() {
 
           <div className="flex items-center gap-4">
             <SiteSelector />
+
+            {/* 역할 표시 및 전환 (userType이 'both'인 경우만) */}
+            {user?.userType === 'both' && (
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                <span className="text-xs font-semibold text-gray-600">
+                  {activeRole === 'manager' ? '관리자 모드' : '근로자 모드'}
+                </span>
+                <button
+                  onClick={() => {
+                    setActiveRole(activeRole === 'manager' ? 'worker' : 'manager')
+                    toast.success(`${activeRole === 'manager' ? '근로자' : '관리자'} 모드로 전환되었습니다`)
+                  }}
+                  className="p-1 hover:bg-white/50 rounded-lg transition-colors"
+                  title="역할 전환"
+                >
+                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
             <div className="relative">
               <button
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
@@ -112,7 +135,27 @@ export default function HomePage() {
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="text-sm font-bold text-gray-900">{user?.fullName || '사용자'}</p>
                     <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                    {user?.userType === 'both' && (
+                      <div className="mt-2 text-xs font-semibold text-blue-600">
+                        현재: {activeRole === 'manager' ? '관리자 모드' : '근로자 모드'}
+                      </div>
+                    )}
                   </div>
+
+                  {/* 역할 전환 (userType이 'both'인 경우만) */}
+                  {user?.userType === 'both' && (
+                    <button
+                      onClick={() => {
+                        setActiveRole(activeRole === 'manager' ? 'worker' : 'manager')
+                        toast.success(`${activeRole === 'manager' ? '근로자' : '관리자'} 모드로 전환되었습니다`)
+                        setIsProfileMenuOpen(false)
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors font-semibold"
+                    >
+                      {activeRole === 'manager' ? '근로자 모드로 전환' : '관리자 모드로 전환'}
+                    </button>
+                  )}
+
                   <Link
                     href="/dashboard/profile"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"

@@ -2,15 +2,28 @@ import { create } from 'zustand'
 import { Attendance, Worker, Site, Company } from '@prisma/client'
 
 interface AuthState {
-  user: { id: string; email: string; fullName?: string | null } | null
+  user: {
+    id: string
+    email: string
+    fullName?: string | null
+    userType?: 'manager' | 'both' | 'worker' // 사용자 타입
+  } | null
+  activeRole: 'manager' | 'worker' // 현재 활성화된 역할
   setUser: (user: AuthState['user']) => void
+  setActiveRole: (role: 'manager' | 'worker') => void
   logout: () => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null, // 실제 인증 후 setUser로 설정됨
-  setUser: (user) => set({ user }),
-  logout: () => set({ user: null }),
+  activeRole: 'manager', // 기본값은 관리자
+  setUser: (user) => {
+    // user가 설정될 때, userType이 'worker'면 activeRole도 'worker'로 설정
+    const activeRole = user?.userType === 'worker' ? 'worker' : 'manager'
+    set({ user, activeRole })
+  },
+  setActiveRole: (role) => set({ activeRole: role }),
+  logout: () => set({ user: null, activeRole: 'manager' }),
 }))
 
 interface AppState {

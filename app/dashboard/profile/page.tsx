@@ -3,15 +3,19 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/lib/store'
+import { toast } from 'sonner'
 import Link from 'next/link'
 
 export default function ProfilePage() {
   const router = useRouter()
+  const { setUser, activeRole, setActiveRole } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUserState] = useState<any>(null)
   const [fullName, setFullName] = useState('')
   const [companyName, setCompanyName] = useState('')
+  const [userType, setUserType] = useState<'manager' | 'both' | 'worker'>('manager')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -23,26 +27,35 @@ export default function ProfilePage() {
     try {
       const supabase = createSupabaseClient()
       const {
-        data: { user },
+        data: { user: authUser },
       } = await supabase.auth.getUser()
 
-      if (!user) {
+      if (!authUser) {
         router.push('/auth/login')
         return
       }
 
-      setUser(user)
+      setUserState(authUser)
 
       // 프로필 정보 로드
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', authUser.id)
         .single()
 
       if (profile) {
         setFullName(profile.full_name || '')
         setCompanyName(profile.company_name || '')
+        setUserType(profile.user_type || 'manager')
+
+        // AuthStore 업데이트
+        setUser({
+          id: authUser.id,
+          email: authUser.email || '',
+          fullName: profile.full_name,
+          userType: profile.user_type || 'manager',
+        })
       }
     } catch (err: any) {
       console.error('Error loading profile:', err)
@@ -67,18 +80,29 @@ export default function ProfilePage() {
           id: user.id,
           full_name: fullName,
           company_name: companyName,
+          user_type: userType,
           email: user.email,
           updated_at: new Date().toISOString(),
         })
 
       if (updateError) throw updateError
 
+      // AuthStore 업데이트
+      setUser({
+        id: user.id,
+        email: user.email || '',
+        fullName: fullName,
+        userType: userType,
+      })
+
+      toast.success('프로필이 성공적으로 업데이트되었습니다.')
       setSuccess('프로필이 성공적으로 업데이트되었습니다.')
 
       // 3초 후 성공 메시지 제거
       setTimeout(() => setSuccess(''), 3000)
     } catch (err: any) {
       setError(err.message || '프로필 업데이트에 실패했습니다.')
+      toast.error(err.message || '프로필 업데이트에 실패했습니다.')
     } finally {
       setSaving(false)
     }
@@ -183,6 +207,95 @@ export default function ProfilePage() {
                 placeholder="회사명"
               />
             </div>
+
+            {/* 역할 선택 */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-3">
+                사용자 역할
+              </label>
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 p-4 bg-slate-900/50 border border-slate-700 rounded-lg cursor-pointer hover:border-sky-500/50 transition-all">
+                  <input
+                    type="radio"
+                    name="userType"
+                    value="manager"
+                    checked={userType === 'manager'}
+                    onChange={(e) => setUserType(e.target.value as any)}
+                    className="mt-1 w-4 h-4 text-sky-500 focus:ring-sky-500"
+                  />
+                  <div className="flex-1">
+                    <div className="font-semibold text-white">관리자 전용</div>
+                    <div className="text-sm text-slate-400">현장 관리, 근로자 관리, 급여 계산 등</div>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-4 bg-slate-900/50 border border-slate-700 rounded-lg cursor-pointer hover:border-sky-500/50 transition-all">
+                  <input
+                    type="radio"
+                    name="userType"
+                    value="both"
+                    checked={userType === 'both'}
+                    onChange={(e) => setUserType(e.target.value as any)}
+                    className="mt-1 w-4 h-4 text-sky-500 focus:ring-sky-500"
+                  />
+                  <div className="flex-1">
+                    <div className="font-semibold text-white">관리자 + 근로자 (이중 역할)</div>
+                    <div className="text-sm text-slate-400">관리자 기능과 근로자 기능 모두 사용 가능</div>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-4 bg-slate-900/50 border border-slate-700 rounded-lg cursor-pointer hover:border-sky-500/50 transition-all">
+                  <input
+                    type="radio"
+                    name="userType"
+                    value="worker"
+                    checked={userType === 'worker'}
+                    onChange={(e) => setUserType(e.target.value as any)}
+                    className="mt-1 w-4 h-4 text-sky-500 focus:ring-sky-500"
+                  />
+                  <div className="flex-1">
+                    <div className="font-semibold text-white">근로자 전용</div>
+                    <div className="text-sm text-slate-400">나의 근로 기록 및 급여 확인</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* 이중 역할인 경우 현재 활성 역할 표시 */}
+            {userType === 'both' && (
+              <div className="p-4 bg-sky-500/10 border border-sky-500/30 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-sky-300">현재 활성 모드</span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveRole(activeRole === 'manager' ? 'worker' : 'manager')}
+                    className="px-3 py-1 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-xs font-bold rounded-lg transition-colors"
+                  >
+                    전환
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <div
+                    className={`flex-1 px-3 py-2 rounded-lg text-center text-sm font-bold transition-all ${
+                      activeRole === 'manager'
+                        ? 'bg-sky-500 text-white'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    관리자 모드
+                  </div>
+                  <div
+                    className={`flex-1 px-3 py-2 rounded-lg text-center text-sm font-bold transition-all ${
+                      activeRole === 'worker'
+                        ? 'bg-sky-500 text-white'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    근로자 모드
+                  </div>
+                </div>
+              </div>
+            )}
 
             <button
               type="submit"
