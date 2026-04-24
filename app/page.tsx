@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { useAuthStore } from '@/lib/store'
 import Link from 'next/link'
 import { createSupabaseClient } from '@/lib/supabase/client'
@@ -79,10 +80,12 @@ export default function LandingPage() {
           router.push(`/auth/confirm-email?email=${encodeURIComponent(email)}`)
         } else if (data.autoSignedIn) {
           // Redirect to dashboard
+          toast.success('환영합니다! 대시보드로 이동합니다.')
           router.push('/home')
         } else {
-          // Fallback to login
-          router.push('/auth/login')
+          // 기존 계정이면 로그인 성공 처리
+          toast.success('로그인되었습니다.')
+          router.push('/home')
         }
       } else {
         if (res.status === 409) {
@@ -114,12 +117,23 @@ export default function LandingPage() {
                 대시보드로 가기
               </Link>
             ) : (
-              <Link
-                href="/auth/login"
-                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                로그인
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/auth/signup"
+                  className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors hidden sm:block"
+                >
+                  회원가입
+                </Link>
+                <button
+                  onClick={() => {
+                    // 페이지 하단 Quick Signup 섹션으로 스크롤
+                    document.getElementById('quick-signup')?.scrollIntoView({ behavior: 'smooth' })
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
+                >
+                  시작하기
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -163,7 +177,7 @@ export default function LandingPage() {
             </div>
 
             {/* Quick Signup Form */}
-            <form onSubmit={handleQuickSignup} className="space-y-4">
+            <form onSubmit={handleQuickSignup} className="space-y-4" id="quick-signup">
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="email"
@@ -219,7 +233,7 @@ export default function LandingPage() {
               </div>
 
               <p className="text-sm text-gray-500">
-                기존 계정이 있으신가요? <Link href="/auth/login" className="text-blue-600 font-bold hover:underline">비밀번호로 로그인</Link>
+                기존 계정이 있으신가요? <Link href="/auth/signup" className="text-blue-600 font-bold hover:underline">상세 가입하기</Link>
               </p>
             </form>
 

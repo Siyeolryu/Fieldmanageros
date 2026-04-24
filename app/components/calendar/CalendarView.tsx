@@ -1,16 +1,17 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { 
-  startOfMonth, 
-  endOfMonth, 
-  startOfWeek, 
-  endOfWeek, 
-  eachDayOfInterval, 
-  isSameMonth, 
-  addMonths, 
+import {
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameMonth,
+  addMonths,
   subMonths,
 } from 'date-fns'
+import { toast } from 'sonner'
 import CalendarHeader from './CalendarHeader'
 import CalendarDay from './CalendarDay'
 import BottomSheet from '../ui/BottomSheet'
@@ -255,7 +256,7 @@ const CalendarView: React.FC = () => {
             onSuccess={() => {
               setIsBulkModalOpen(false)
               fetchData()
-              alert('출근 등록이 완료되었습니다.')
+              toast.success('출근 등록이 성공적으로 완료되었습니다.')
             }}
             onCancel={() => setIsBulkModalOpen(false)}
           />
@@ -273,7 +274,7 @@ const CalendarView: React.FC = () => {
             onSuccess={() => {
               setIsIndividualModalOpen(false)
               fetchData()
-              alert('정상적으로 등록되었습니다.')
+              toast.success('출근 기록이 정상적으로 저장되었습니다.')
             }}
             onCancel={() => setIsIndividualModalOpen(false)}
           />
