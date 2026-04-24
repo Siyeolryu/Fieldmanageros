@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { toast } from 'sonner'
 import Button from '@/app/components/ui/Button'
 import Tooltip from '@/app/components/ui/Tooltip'
 import { Site, Company } from '@prisma/client'
@@ -88,10 +89,15 @@ export default function SiteForm({ initialData, companies, isEdit = false, userP
         throw new Error(result.error || '저장 중 오류가 발생했습니다.')
       }
 
+      toast.success(isEdit ? '현장 정보가 수정되었습니다' : '현장이 등록되었습니다', {
+        description: data.name,
+        duration: 3000,
+      })
       router.push('/sites')
       router.refresh()
     } catch (error: any) {
       setErrorMsg(error.message)
+      toast.error(error.message)
     }
   }
 

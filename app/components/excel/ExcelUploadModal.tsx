@@ -128,6 +128,28 @@ export default function ExcelUploadModal({
           </div>
         </div>
 
+        {/* 샘플 양식 다운로드 */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="text-sm font-semibold text-amber-800">
+              {type === 'workers' ? '근로자 등록' : '출근 기록'} 샘플 양식
+            </span>
+          </div>
+          <a
+            href={`/templates/${type === 'workers' ? 'workers-template.csv' : 'attendance-template.csv'}`}
+            download
+            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            다운로드
+          </a>
+        </div>
+
         {/* 안내 사항 */}
         <div className="bg-blue-50 rounded-lg p-4 text-sm">
           <p className="font-semibold text-blue-700 mb-2">📄 Excel 파일 형식 안내</p>

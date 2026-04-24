@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { Worker } from '@prisma/client'
+import { toast } from 'sonner'
 import Button from '../ui/Button'
 import { formatDate } from '@/lib/dateUtils'
 
@@ -63,13 +64,17 @@ const BulkAttendanceForm: React.FC<BulkAttendanceFormProps> = ({
       })
 
       if (response.ok) {
+        toast.success('일괄 출근 등록이 완료되었습니다', {
+          description: `${selectedWorkerIds.length}명 - ${formatDate(date)} (${hoursWorked.toFixed(1)}시간)`,
+          duration: 3000,
+        })
         onSuccess()
       } else {
-        alert('출근 등록 중 오류가 발생했습니다.')
+        toast.error('출근 등록 중 오류가 발생했습니다.')
       }
     } catch (error) {
       console.error(error)
-      alert('네트워크 오류가 발생했습니다.')
+      toast.error('네트워크 오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
       setIsSubmitting(false)
     }

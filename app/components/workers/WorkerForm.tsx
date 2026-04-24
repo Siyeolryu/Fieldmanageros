@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Worker } from '@prisma/client'
+import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
 import Button from '@/app/components/ui/Button'
 
@@ -55,14 +56,18 @@ const WorkerForm: React.FC<WorkerFormProps> = ({ worker, onSuccess, onCancel }) 
       })
 
       if (response.ok) {
+        toast.success(worker ? '근로자 정보가 수정되었습니다' : '근로자가 등록되었습니다', {
+          description: `${formData.name} - 시급 ${formData.hourlyRate.toLocaleString()}원`,
+          duration: 3000,
+        })
         onSuccess()
       } else {
         const error = await response.json()
-        alert(error.error || '저장 중 오류가 발생했습니다.')
+        toast.error(error.error || '저장 중 오류가 발생했습니다.')
       }
     } catch (error) {
       console.error('Submit error:', error)
-      alert('네트워크 오류가 발생했습니다.')
+      toast.error('네트워크 오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
       setIsSubmitting(false)
     }
