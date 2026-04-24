@@ -23,6 +23,46 @@ const nextConfig = {
       },
     ],
   },
+  // 리다이렉트 설정: /dashboard/* 경로를 올바른 경로로 리다이렉트
+  async redirects() {
+    return [
+      {
+        source: '/dashboard/companies',
+        destination: '/companies',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/companies/:path*',
+        destination: '/companies/:path*',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/sites',
+        destination: '/sites',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/sites/:path*',
+        destination: '/sites/:path*',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/workers',
+        destination: '/workers',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/attendance',
+        destination: '/home',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/payroll',
+        destination: '/payroll',
+        permanent: true,
+      },
+    ]
+  },
 }
 
 export default nextConfig
