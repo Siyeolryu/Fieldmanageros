@@ -1,12 +1,11 @@
 import React from 'react'
 import { notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
-import CompanyForm from '../../components/companies/CompanyForm'
-import DeleteCompanyButton from '../../components/companies/DeleteCompanyButton'
-
-import SiteCard from '../../components/sites/SiteCard'
+import CompanyForm from '@/app/components/companies/CompanyForm'
+import DeleteCompanyButton from '@/app/components/companies/DeleteCompanyButton'
+import SiteCard from '@/app/components/sites/SiteCard'
 import Link from 'next/link'
-import Button from '../../components/ui/Button'
+import Button from '@/app/components/ui/Button'
 
 export default async function EditCompanyPage({
   params,

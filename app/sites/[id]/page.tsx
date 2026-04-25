@@ -1,8 +1,8 @@
 import React from 'react'
 import { notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
-import SiteForm from '../../components/sites/SiteForm'
-import Button from '../../components/ui/Button'
+import SiteForm from '@/app/components/sites/SiteForm'
+import Button from '@/app/components/ui/Button'
 import Link from 'next/link'
 
 export default async function SiteDetailPage({

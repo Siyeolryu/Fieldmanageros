@@ -84,7 +84,18 @@ export default function WorkersPage() {
             <h2 className="text-3xl font-black text-gray-900 tracing-tight">근로자 관리</h2>
             <p className="text-gray-500 font-medium">현장별 인력 현황 및 개인 정보를 관리합니다.</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
+            {/* 샘플 다운로드 버튼 - 직관적으로 노출 */}
+            <a
+              href="/templates/workers-template.csv"
+              download
+              className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold rounded-xl transition-all shadow-lg shadow-amber-200 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              샘플 다운로드받기
+            </a>
             <Button
               variant="outline"
               onClick={() => setIsExcelModalOpen(true)}
