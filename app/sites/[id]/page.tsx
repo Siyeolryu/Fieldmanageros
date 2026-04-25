@@ -5,6 +5,44 @@ import SiteForm from '@/app/components/sites/SiteForm'
 import Button from '@/app/components/ui/Button'
 import Link from 'next/link'
 
+// Serialized types for client components
+type SerializedSite = {
+  id: string
+  companyId: string
+  name: string
+  location: string | null
+  startDate: string | null
+  endDate: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  company: {
+    id: string
+    name: string
+    businessNumber: string | null
+    phone: string | null
+    address: string | null
+    ownerId: string
+    createdAt: string
+    updatedAt: string
+  } | null
+  _count?: {
+    workers: number
+    attendance: number
+  }
+}
+
+type SerializedCompany = {
+  id: string
+  name: string
+  businessNumber: string | null
+  phone: string | null
+  address: string | null
+  ownerId: string
+  createdAt: string
+  updatedAt: string
+}
+
 export default async function SiteDetailPage({
   params,
 }: {
@@ -34,25 +72,9 @@ export default async function SiteDetailPage({
     orderBy: { name: 'asc' },
   })
 
-  // Serialize Date objects for client components
-  const serializedSite = {
-    ...site,
-    startDate: site.startDate?.toISOString() || null,
-    endDate: site.endDate?.toISOString() || null,
-    createdAt: site.createdAt.toISOString(),
-    updatedAt: site.updatedAt.toISOString(),
-    company: site.company ? {
-      ...site.company,
-      createdAt: site.company.createdAt.toISOString(),
-      updatedAt: site.company.updatedAt.toISOString(),
-    } : null,
-  }
-
-  const serializedCompanies = companies.map(company => ({
-    ...company,
-    createdAt: company.createdAt.toISOString(),
-    updatedAt: company.updatedAt.toISOString(),
-  }))
+  // Serialize all data for client components (converts Date to string)
+  const serializedSite: SerializedSite = JSON.parse(JSON.stringify(site))
+  const serializedCompanies: SerializedCompany[] = JSON.parse(JSON.stringify(companies))
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">

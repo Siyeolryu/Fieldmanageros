@@ -7,6 +7,30 @@ import SiteCard from '@/app/components/sites/SiteCard'
 import Link from 'next/link'
 import Button from '@/app/components/ui/Button'
 
+// Serialized types for client components
+type SerializedCompany = {
+  id: string
+  name: string
+  businessNumber: string | null
+  phone: string | null
+  address: string | null
+  ownerId: string
+  createdAt: string
+  updatedAt: string
+}
+
+type SerializedSite = {
+  id: string
+  companyId: string
+  name: string
+  location: string | null
+  startDate: string | null
+  endDate: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export default async function EditCompanyPage({
   params,
 }: {
@@ -27,20 +51,9 @@ export default async function EditCompanyPage({
     notFound()
   }
 
-  // Serialize Date objects for client components
-  const serializedCompany = {
-    ...company,
-    createdAt: company.createdAt.toISOString(),
-    updatedAt: company.updatedAt.toISOString(),
-  }
-
-  const serializedSites = company.sites.map(site => ({
-    ...site,
-    startDate: site.startDate?.toISOString() || null,
-    endDate: site.endDate?.toISOString() || null,
-    createdAt: site.createdAt.toISOString(),
-    updatedAt: site.updatedAt.toISOString(),
-  }))
+  // Serialize all data for client components (converts Date to string)
+  const serializedCompany: SerializedCompany = JSON.parse(JSON.stringify(company))
+  const serializedSites: SerializedSite[] = JSON.parse(JSON.stringify(company.sites))
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
