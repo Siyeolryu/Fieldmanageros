@@ -11,7 +11,7 @@ export default async function SiteDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  
+
   const site = await prisma.site.findUnique({
     where: { id },
     include: {
@@ -33,6 +33,26 @@ export default async function SiteDetailPage({
   const companies = await prisma.company.findMany({
     orderBy: { name: 'asc' },
   })
+
+  // Serialize Date objects for client components
+  const serializedSite = {
+    ...site,
+    startDate: site.startDate?.toISOString() || null,
+    endDate: site.endDate?.toISOString() || null,
+    createdAt: site.createdAt.toISOString(),
+    updatedAt: site.updatedAt.toISOString(),
+    company: site.company ? {
+      ...site.company,
+      createdAt: site.company.createdAt.toISOString(),
+      updatedAt: site.company.updatedAt.toISOString(),
+    } : null,
+  }
+
+  const serializedCompanies = companies.map(company => ({
+    ...company,
+    createdAt: company.createdAt.toISOString(),
+    updatedAt: company.updatedAt.toISOString(),
+  }))
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
@@ -75,9 +95,9 @@ export default async function SiteDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         <div className="space-y-6">
           <h3 className="text-2xl font-bold text-gray-900 ml-2">현장 정보 수정</h3>
-          <SiteForm initialData={site} companies={companies} isEdit={true} />
+          <SiteForm initialData={serializedSite} companies={serializedCompanies} isEdit={true} />
         </div>
-        
+
         <div className="space-y-6">
           <h3 className="text-2xl font-bold text-gray-900 ml-2">최근 활동</h3>
           <div className="bg-white/40 backdrop-blur-sm rounded-[2.5rem] border border-gray-100 p-8 flex flex-col items-center justify-center min-h-[400px]">

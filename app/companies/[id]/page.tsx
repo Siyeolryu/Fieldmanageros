@@ -13,7 +13,7 @@ export default async function EditCompanyPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  
+
   const company = await prisma.company.findUnique({
     where: { id },
     include: {
@@ -26,6 +26,21 @@ export default async function EditCompanyPage({
   if (!company) {
     notFound()
   }
+
+  // Serialize Date objects for client components
+  const serializedCompany = {
+    ...company,
+    createdAt: company.createdAt.toISOString(),
+    updatedAt: company.updatedAt.toISOString(),
+  }
+
+  const serializedSites = company.sites.map(site => ({
+    ...site,
+    startDate: site.startDate?.toISOString() || null,
+    endDate: site.endDate?.toISOString() || null,
+    createdAt: site.createdAt.toISOString(),
+    updatedAt: site.updatedAt.toISOString(),
+  }))
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
@@ -51,10 +66,10 @@ export default async function EditCompanyPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
         <div className="space-y-8">
           <h3 className="text-2xl font-bold text-gray-900 ml-2">회사 기본 정보</h3>
-          <CompanyForm 
-            initialData={company} 
-            ownerId={company.ownerId} 
-            isEdit={true} 
+          <CompanyForm
+            initialData={serializedCompany}
+            ownerId={company.ownerId}
+            isEdit={true}
           />
         </div>
 
@@ -62,11 +77,11 @@ export default async function EditCompanyPage({
           <div className="flex justify-between items-center ml-2">
             <h3 className="text-2xl font-bold text-gray-900">소속 현장 목록</h3>
             <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-              총 {company.sites.length}개
+              총 {serializedSites.length}개
             </span>
           </div>
-          
-          {company.sites.length === 0 ? (
+
+          {serializedSites.length === 0 ? (
             <div className="bg-gray-50 border border-dashed border-gray-200 rounded-[2.5rem] p-12 text-center">
               <p className="text-gray-400 font-medium mb-4">등록된 현장이 없습니다.</p>
               <Link href={`/sites/new?companyId=${company.id}`}>
@@ -77,7 +92,7 @@ export default async function EditCompanyPage({
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6">
-              {company.sites.map(site => (
+              {serializedSites.map(site => (
                 <SiteCard key={site.id} site={site} />
               ))}
             </div>
