@@ -29,8 +29,10 @@ model Profile {
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // Relations
-  companies Company[]
-  workers   Worker[]  @relation("ProfileWorker")
+  companies              Company[]
+  workers                Worker[]             @relation("ProfileWorker")
+  correctionRequests     CorrectionRequest[]  @relation("CorrectionRequester")
+  reviewedCorrections    CorrectionRequest[]  @relation("CorrectionReviewer")
 
   @@map("profiles")
 }
@@ -124,8 +126,9 @@ model Attendance {
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // Relations
-  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
-  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  worker             Worker              @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  site               Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  correctionRequests CorrectionRequest[]
 
   @@unique([workerId, siteId, date])
   @@map("attendance")
@@ -163,4 +166,30 @@ model Payroll {
 
   @@unique([workerId, siteId, year, month])
   @@map("payroll")
+}
+
+// ════════════════════════════════════════
+// CorrectionRequest (출근 기록 수정 요청)
+// ════════════════════════════════════════
+
+model CorrectionRequest {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  attendanceId   String    @map("attendance_id") @db.Uuid
+  requestedBy    String    @map("requested_by") @db.Uuid
+  requestedHours Decimal?  @map("requested_hours") @db.Decimal(4, 1)
+  requestedNotes String?   @map("requested_notes")
+  reason         String
+  status         String    @default("pending") // pending, approved, rejected
+  reviewedBy     String?   @map("reviewed_by") @db.Uuid
+  reviewedAt     DateTime? @map("reviewed_at") @db.Timestamptz
+  reviewNotes    String?   @map("review_notes")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  requester  Profile    @relation("CorrectionRequester", fields: [requestedBy], references: [id])
+  reviewer   Profile?   @relation("CorrectionReviewer", fields: [reviewedBy], references: [id])
+
+  @@map("correction_requests")
 }

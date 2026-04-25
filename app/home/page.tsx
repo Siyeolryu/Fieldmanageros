@@ -81,19 +81,31 @@ export default function HomePage() {
           <div className="flex items-center gap-8">
             <h1 className="text-xl font-black text-blue-600 tracking-tight">노무PRO</h1>
             <nav className="hidden md:flex items-center gap-6">
-              <Link href="/home" className="text-sm font-bold text-gray-900 border-b-2 border-blue-600 pb-1">대시보드</Link>
-              <Link href="/workers" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">근로자 관리</Link>
-              <Link href="/payroll" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">노임대장</Link>
-              {/* 전체 메뉴 바로가기 */}
-              <Link
-                href="/dashboard"
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-blue-200 transition-all flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-                전체 메뉴
-              </Link>
+              {activeRole === 'worker' ? (
+                /* 근로자 모드 메뉴 */
+                <>
+                  <Link href="/worker/my-info" className="text-sm font-bold text-gray-900 border-b-2 border-green-600 pb-1">나의 급여</Link>
+                  <Link href="/home" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">홈</Link>
+                </>
+              ) : (
+                /* 관리자 모드 메뉴 */
+                <>
+                  <Link href="/home" className="text-sm font-bold text-gray-900 border-b-2 border-blue-600 pb-1">대시보드</Link>
+                  <Link href="/workers" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">근로자 관리</Link>
+                  <Link href="/payroll" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">노임대장</Link>
+                  <Link href="/corrections" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">수정 요청</Link>
+                  {/* 전체 메뉴 바로가기 */}
+                  <Link
+                    href="/dashboard"
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-blue-200 transition-all flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                    전체 메뉴
+                  </Link>
+                </>
+              )}
             </nav>
           </div>
 
