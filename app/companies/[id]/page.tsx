@@ -68,54 +68,18 @@ export default async function EditCompanyPage({
     notFound()
   }
 
-  // Get current year and month for labor cost calculation
-  const currentDate = new Date()
-  const currentYear = currentDate.getFullYear()
-  const currentMonth = currentDate.getMonth() + 1
-
-  // Calculate monthly labor cost and worker count for each site
-  const sitesWithStats: SiteWithStats[] = await Promise.all(
-    company.sites.map(async (site) => {
-      // Get total labor cost for current month
-      const payrollSum = await prisma.payroll.aggregate({
-        where: {
-          siteId: site.id,
-          year: currentYear,
-          month: currentMonth,
-        },
-        _sum: {
-          totalPay: true,
-        },
-      })
-
-      // Get unique worker count for current month
-      const startOfMonth = new Date(currentYear, currentMonth - 1, 1)
-      const endOfMonth = new Date(currentYear, currentMonth, 0)
-
-      const currentMonthAttendance = await prisma.attendance.groupBy({
-        by: ['workerId'],
-        where: {
-          siteId: site.id,
-          date: {
-            gte: startOfMonth,
-            lte: endOfMonth,
-          },
-        },
-      })
-
-      // Serialize and add stats
-      const serializedSite: SerializedSite = JSON.parse(JSON.stringify(site))
-
-      return {
-        ...serializedSite,
-        monthlyLaborCost: payrollSum._sum.totalPay || 0,
-        currentMonthWorkers: currentMonthAttendance.length,
-      }
-    })
-  )
-
   // Serialize company data
   const serializedCompany: SerializedCompany = JSON.parse(JSON.stringify(company))
+
+  // Serialize sites with default stats (will be loaded client-side if needed)
+  const sitesWithStats: SiteWithStats[] = company.sites.map((site) => {
+    const serializedSite: SerializedSite = JSON.parse(JSON.stringify(site))
+    return {
+      ...serializedSite,
+      monthlyLaborCost: 0,  // Default value - can be loaded via API
+      currentMonthWorkers: 0,  // Default value - can be loaded via API
+    }
+  })
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
