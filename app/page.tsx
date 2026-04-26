@@ -237,23 +237,7 @@ export default function LandingPage() {
               </p>
             </form>
 
-            {/* Social Proof */}
-            <div className="flex items-center gap-6 pt-8 border-t border-gray-200">
-              <div>
-                <p className="text-2xl font-black text-gray-900">500+</p>
-                <p className="text-sm text-gray-500 font-medium">활성 현장</p>
-              </div>
-              <div className="w-px h-12 bg-gray-200" />
-              <div>
-                <p className="text-2xl font-black text-gray-900">10,000+</p>
-                <p className="text-sm text-gray-500 font-medium">관리 중인 근로자</p>
-              </div>
-              <div className="w-px h-12 bg-gray-200" />
-              <div>
-                <p className="text-2xl font-black text-gray-900">98%</p>
-                <p className="text-sm text-gray-500 font-medium">고객 만족도</p>
-              </div>
-            </div>
+            {/* Social Proof - Removed for production launch */}
           </div>
 
           {/* Right - Feature Preview */}
@@ -374,67 +358,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonial Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-50 to-indigo-50">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4">
-              실제 사용자 후기
-            </h2>
-            <p className="text-lg text-gray-600">
-              현장에서 직접 사용하시는 분들의 생생한 이야기
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            {/* Testimonial 1 */}
-            <div className="p-8 bg-white rounded-3xl shadow-lg border border-gray-100">
-              <div className="flex items-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                ))}
-              </div>
-              <p className="text-gray-700 text-lg leading-relaxed mb-6">
-                "30년 현장 생활하면서 처음으로 노임대장이 즐거워졌습니다. 엑셀 몰라도 되니까 정말 편해요."
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">김</span>
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900">김현장</p>
-                  <p className="text-sm text-gray-500">53세, 대한건설</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Testimonial 2 */}
-            <div className="p-8 bg-white rounded-3xl shadow-lg border border-gray-100">
-              <div className="flex items-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                ))}
-              </div>
-              <p className="text-gray-700 text-lg leading-relaxed mb-6">
-                "월말 정산 때마다 스트레스였는데, 이제 5분이면 끝나요. 4대보험 신고도 알림으로 놓칠 일이 없어졌습니다."
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">박</span>
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900">박소장</p>
-                  <p className="text-sm text-gray-500">48세, 삼성토건</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Testimonial Section - Removed for production launch */}
 
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-400 py-12">
