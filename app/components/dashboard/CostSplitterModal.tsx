@@ -162,17 +162,43 @@ export default function CostSplitterModal({ isOpen, onClose }: CostSplitterModal
                     </table>
                 </div>
 
-                <div className="p-4 bg-gray-50 rounded-2xl flex justify-between items-center">
-                    <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">예상 총액 합계</p>
-                        <p className="text-lg font-black text-gray-900">₩{proposals.reduce((sum, p) => sum + p.totalPay, 0).toLocaleString()}</p>
+                <div className="space-y-4">
+                    <div className="p-4 bg-gray-50 rounded-2xl">
+                        <div className="flex justify-between items-center mb-3">
+                            <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase">예상 총액 합계</p>
+                                <p className="text-lg font-black text-gray-900">₩{proposals.reduce((sum, p) => sum + p.totalPay, 0).toLocaleString()}</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        const text = proposals.map(p =>
+                                            `${p.name}\t${p.dailyRate.toLocaleString()}원\t${p.days}공수\t${p.totalPay.toLocaleString()}원`
+                                        ).join('\n')
+                                        navigator.clipboard.writeText(text)
+                                        alert('✅ 시나리오가 클립보드에 복사되었습니다.\n엑셀이나 메모장에 붙여넣기 하세요.')
+                                    }}
+                                    className="px-4 py-2 bg-white border-2 border-indigo-200 text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-50 transition-all"
+                                >
+                                    📋 복사
+                                </button>
+                                <button
+                                    onClick={onClose}
+                                    className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
+                                >
+                                    닫기
+                                </button>
+                            </div>
+                        </div>
+                        <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                            <p className="text-xs text-blue-700 leading-relaxed">
+                                💡 <strong>이 도구는 시뮬레이션입니다.</strong> 실제 데이터에 반영하려면:<br/>
+                                1. "복사" 버튼으로 결과를 복사하거나<br/>
+                                2. 각 근로자의 시급을 수동으로 조정한 후<br/>
+                                3. 노임대장 페이지에서 정산을 진행하세요.
+                            </p>
+                        </div>
                     </div>
-                    <button 
-                        onClick={() => alert('이 기능은 시뮬레이션입니다. 실제 데이터에 반영하시려면 노임대장 저장 기능을 이용하세요.')}
-                        className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
-                    >
-                        이 시나리오 적용하기
-                    </button>
                 </div>
             </div>
         </Modal>
