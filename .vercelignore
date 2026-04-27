@@ -1,0 +1,11 @@
+# Vercel ignore patterns
+.git
+.env.local
+.env*.local
+node_modules
+tests
+playwright-report
+test-results
+*.md
+!README.md
+scripts/
