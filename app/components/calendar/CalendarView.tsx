@@ -12,6 +12,7 @@ import {
   subMonths,
 } from 'date-fns'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 import CalendarHeader from './CalendarHeader'
 import CalendarDay from './CalendarDay'
 import BottomSheet from '../ui/BottomSheet'
@@ -22,24 +23,37 @@ import AttendanceForm from '../attendance/AttendanceForm'
 import Modal from '../ui/Modal'
 
 const CalendarView: React.FC = () => {
+  const router = useRouter()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
   const [isIndividualModalOpen, setIsIndividualModalOpen] = useState(false)
-  
-  const { 
-    attendanceRecords, 
-    setAttendanceRecords, 
+  const [selectedAttendance, setSelectedAttendance] = useState<{
+    id: string
+    worker: { name: string }
+    hoursWorked: number | string
+    isWeeklyHoliday: boolean
+  } | null>(null)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+
+  const {
+    setAttendanceRecords,
     getAttendanceByDate,
     isLoading,
     setIsLoading,
-    setError 
+    setError
   } = useAttendanceStore()
   const { selectedSite } = useAppStore()
-  
+
   // 근로자 데이터
-  const [workers, setWorkers] = useState<any[]>([])
+  interface Worker {
+    id: string
+    name: string
+    hourlyRate: number
+    isActive: boolean
+  }
+  const [workers, setWorkers] = useState<Worker[]>([])
   const [currentUserId, setCurrentUserId] = useState<string>()  // Phase 5
 
   // Phase 5: 현재 사용자 정보 가져오기
@@ -78,9 +92,9 @@ const CalendarView: React.FC = () => {
       if (!attendanceRes.ok) throw new Error('출근 기록을 불러오는데 실패했습니다.');
       const attendanceData = await attendanceRes.json();
       setAttendanceRecords(attendanceData);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Data fetching error:', err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -180,7 +194,17 @@ const CalendarView: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold text-gray-500">출근 명단 ({selectedDayAttendees.length}명)</span>
-                <Button variant="ghost" size="sm" className="text-blue-600 font-bold p-0 min-h-0">전체 보기</Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-blue-600 font-bold p-0 min-h-0"
+                  onClick={() => {
+                    setIsSheetOpen(false)
+                    router.push('/home')
+                  }}
+                >
+                  전체 보기
+                </Button>
               </div>
               <ul className="space-y-3">
                 {selectedDayAttendees.map((record) => (
@@ -194,7 +218,18 @@ const CalendarView: React.FC = () => {
                         <p className="text-xs font-bold text-blue-600">{(Number(record.hoursWorked) / 8).toFixed(1)}공수</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="h-8 min-h-0 text-xs">상세</Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 min-h-0 text-xs"
+                      onClick={() => {
+                        setSelectedAttendance(record)
+                        setIsSheetOpen(false)
+                        setIsDetailModalOpen(true)
+                      }}
+                    >
+                      상세
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -212,9 +247,15 @@ const CalendarView: React.FC = () => {
 
           {/* 일괄 등록 UX 제안 반영 */}
           <div className="space-y-3 pt-4">
-            <Button 
-              size="full" 
+            {workers.length === 0 && (
+              <p className="text-sm text-yellow-600 font-medium bg-yellow-50 p-3 rounded-xl">
+                ⚠️ 근로자를 먼저 등록해주세요.
+              </p>
+            )}
+            <Button
+              size="full"
               className="bg-blue-600 gap-2"
+              disabled={workers.length === 0}
               onClick={() => {
                 setIsSheetOpen(false)
                 setIsIndividualModalOpen(true)
@@ -225,10 +266,11 @@ const CalendarView: React.FC = () => {
               </svg>
               개별 등록
             </Button>
-            <Button 
-              size="full" 
-              variant="success" 
+            <Button
+              size="full"
+              variant="success"
               className="gap-2"
+              disabled={workers.length === 0}
               onClick={() => {
                 setIsSheetOpen(false)
                 setIsBulkModalOpen(true)
@@ -263,12 +305,12 @@ const CalendarView: React.FC = () => {
         </Modal>
 
         {/* 개별 등록 모달 */}
-        <Modal 
-          isOpen={isIndividualModalOpen} 
+        <Modal
+          isOpen={isIndividualModalOpen}
           onClose={() => setIsIndividualModalOpen(false)}
           title="개별 출근 등록"
         >
-          <AttendanceForm 
+          <AttendanceForm
             workers={workers}
             date={selectedDate}
             onSuccess={() => {
@@ -278,6 +320,71 @@ const CalendarView: React.FC = () => {
             }}
             onCancel={() => setIsIndividualModalOpen(false)}
           />
+        </Modal>
+
+        {/* 상세 보기/수정 모달 */}
+        <Modal
+          isOpen={isDetailModalOpen}
+          onClose={() => {
+            setIsDetailModalOpen(false)
+            setSelectedAttendance(null)
+          }}
+          title="출근 기록 상세"
+        >
+          {selectedAttendance && (
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 rounded-xl">
+                <h3 className="font-bold text-gray-900 mb-2">{selectedAttendance.worker.name}</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">근무 시간</span>
+                    <span className="font-bold">{Number(selectedAttendance.hoursWorked).toFixed(1)}시간</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">공수</span>
+                    <span className="font-bold">{(Number(selectedAttendance.hoursWorked) / 8).toFixed(1)}공수</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">주휴일 여부</span>
+                    <span className="font-bold">{selectedAttendance.isWeeklyHoliday ? '예' : '아니오'}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  size="full"
+                  onClick={() => {
+                    setIsDetailModalOpen(false)
+                    setSelectedAttendance(null)
+                  }}
+                >
+                  닫기
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="full"
+                  onClick={async () => {
+                    if (!confirm('이 출근 기록을 삭제하시겠습니까?')) return
+                    try {
+                      const res = await fetch(`/api/attendance/${selectedAttendance.id}`, {
+                        method: 'DELETE'
+                      })
+                      if (!res.ok) throw new Error('삭제 실패')
+                      toast.success('출근 기록이 삭제되었습니다.')
+                      setIsDetailModalOpen(false)
+                      setSelectedAttendance(null)
+                      fetchData()
+                    } catch (error) {
+                      toast.error('삭제 중 오류가 발생했습니다.')
+                    }
+                  }}
+                >
+                  삭제
+                </Button>
+              </div>
+            </div>
+          )}
         </Modal>
       </div>
   )

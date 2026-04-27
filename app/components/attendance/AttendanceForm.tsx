@@ -36,7 +36,7 @@ const AttendanceForm: React.FC<AttendanceFormProps> = ({
     const [startHour, startMin] = start.split(':').map(Number)
     const [endHour, endMin] = end.split(':').map(Number)
 
-    let startMinutes = startHour * 60 + startMin
+    const startMinutes = startHour * 60 + startMin
     let endMinutes = endHour * 60 + endMin
 
     // 야간 근무 처리 (종료 시간이 시작 시간보다 작으면 다음날)

@@ -34,8 +34,8 @@ function ConfirmEmailContent() {
       if (error) throw error
 
       setResendSuccess(true)
-    } catch (err: any) {
-      setResendError(err.message || '이메일 재전송에 실패했습니다')
+    } catch (err) {
+      setResendError(err instanceof Error ? err.message : '이메일 재전송에 실패했습니다')
     } finally {
       setIsResending(false)
     }
@@ -87,7 +87,7 @@ function ConfirmEmailContent() {
                 <div>
                   <h3 className="font-bold text-gray-900 mb-1">인증 링크 클릭</h3>
                   <p className="text-sm text-gray-600">
-                    이메일 내의 "이메일 인증하기" 버튼을 클릭해주세요.
+                    이메일 내의 &quot;이메일 인증하기&quot; 버튼을 클릭해주세요.
                   </p>
                 </div>
               </div>
