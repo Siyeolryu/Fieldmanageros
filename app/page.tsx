@@ -39,15 +39,16 @@ export default function LandingPage() {
     try {
       const supabase = createSupabaseClient()
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider as any,
+        provider: provider as 'kakao' | 'naver',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
       if (error) throw error
-    } catch (err: any) {
-      setErrorMessage(err.message || '소셜 서버 통신 중 오류가 발생했습니다.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '소셜 서버 통신 중 오류가 발생했습니다.'
+      setErrorMessage(message)
       setIsLoading(false)
     }
   }
@@ -109,7 +110,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <h1 className="text-xl font-black text-blue-600 tracking-tight">노무PRO</h1>
           <div className="flex items-center gap-4">
-            {user ? (
+{user ? (
               <Link
                 href="/home"
                 className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
@@ -118,12 +119,17 @@ export default function LandingPage() {
               </Link>
             ) : (
               <div className="flex items-center gap-3">
-                <Link
-                  href="/auth/signup"
-                  className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors hidden sm:block"
+                <button
+                  onClick={() => {
+                    const { setGuestMode } = useAuthStore.getState()
+                    setGuestMode(true)
+                    router.push('/home')
+                    toast.success('게스트 모드로 입장했습니다. 데이터는 브라우저에만 저장됩니다.')
+                  }}
+                  className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                 >
-                  회원가입
-                </Link>
+                  둘러보기
+                </button>
                 <button
                   onClick={() => {
                     // 페이지 하단 Quick Signup 섹션으로 스크롤

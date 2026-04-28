@@ -33,8 +33,7 @@ interface AttendanceData {
 export function generatePayrollExcel(
   payrolls: PayrollData[],
   year: number,
-  month: number,
-  siteName: string
+  month: number
 ): Buffer {
   const data = [
     // 헤더
@@ -132,8 +131,7 @@ export function generatePayrollExcel(
 export function generateAttendanceExcel(
   attendance: AttendanceData[],
   year: number,
-  month: number,
-  siteName: string
+  month: number
 ): Buffer {
   // 날짜별로 그룹화
   const dateMap = new Map<string, AttendanceData[]>()

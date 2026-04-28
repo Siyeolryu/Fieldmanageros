@@ -29,12 +29,33 @@ export async function GET(
       )
     }
 
+    // Type assertion needed due to Supabase type inference
+    const record = attendance as {
+      id: string
+      worker_id: string
+      site_id: string
+      date: string
+      hours_worked: number
+      is_weekly_holiday: boolean
+      notes: string | null
+      created_at: string
+      updated_at: string
+      workers: { id: string; name: string } | null
+      sites: { id: string; name: string } | null
+    }
+
     return NextResponse.json({
-      ...attendance,
-      worker: attendance.workers,
-      site: attendance.sites,
-      workers: undefined,
-      sites: undefined,
+      id: record.id,
+      worker_id: record.worker_id,
+      site_id: record.site_id,
+      date: record.date,
+      hours_worked: record.hours_worked,
+      is_weekly_holiday: record.is_weekly_holiday,
+      notes: record.notes,
+      created_at: record.created_at,
+      updated_at: record.updated_at,
+      worker: record.workers,
+      site: record.sites,
     })
   } catch (error) {
     console.error('Error fetching attendance details:', error)
@@ -55,14 +76,15 @@ export async function PATCH(
     const body = await request.json()
     const validatedData = updateAttendanceSchema.parse(body)
 
-    const updateData: any = {}
+    const updateData: Record<string, number | boolean | string | null> = {}
     if (validatedData.hoursWorked !== undefined) updateData.hours_worked = validatedData.hoursWorked
     if (validatedData.isWeeklyHoliday !== undefined) updateData.is_weekly_holiday = validatedData.isWeeklyHoliday
     if (validatedData.notes !== undefined) updateData.notes = validatedData.notes
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: attendance, error } = await supabaseAdmin
       .from('attendance')
-      .update(updateData)
+      .update(updateData as any)
       .eq('id', id)
       .select()
       .single()

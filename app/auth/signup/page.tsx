@@ -66,8 +66,9 @@ export default function SignupPage() {
           }
         }, 2000)
       }
-    } catch (err: any) {
-      setError(err.message || '회원가입에 실패했습니다.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '회원가입에 실패했습니다.'
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -80,15 +81,16 @@ export default function SignupPage() {
     try {
       const supabase = createSupabaseClient()
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider as any,
+        provider: provider as 'kakao' | 'naver',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
       if (error) throw error
-    } catch (err: any) {
-      setError(err.message || '소셜 로그인에 실패했습니다.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '소셜 로그인에 실패했습니다.'
+      setError(message)
       setLoading(false)
     }
   }

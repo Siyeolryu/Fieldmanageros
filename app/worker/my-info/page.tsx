@@ -42,7 +42,7 @@ export default function WorkerMyInfoPage() {
   const [attendanceData, setAttendanceData] = useState<AttendanceData[]>([])
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [isCorrectionModalOpen, setIsCorrectionModalOpen] = useState(false)
-  const [selectedAttendance, setSelectedAttendance] = useState<any>(null)
+  const [selectedAttendance, setSelectedAttendance] = useState<AttendanceData & { worker: { name: string } } | null>(null)
 
   useEffect(() => {
     if (!user) {

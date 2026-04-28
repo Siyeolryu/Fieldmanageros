@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/client'
 
@@ -56,8 +56,9 @@ function ProfileSetupContent() {
 
       // 완료 후 로그인 페이지로 이동
       router.push('/auth/login?signup=complete')
-    } catch (err: any) {
-      setError(err.message || '프로필 설정에 실패했습니다.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '프로필 설정에 실패했습니다.'
+      setError(message)
     } finally {
       setLoading(false)
     }

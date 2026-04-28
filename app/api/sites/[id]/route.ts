@@ -71,7 +71,7 @@ export async function PATCH(
     const body = await request.json()
     const validatedData = updateSiteSchema.parse(body)
 
-    const updateData: any = {}
+    const updateData: Record<string, string | boolean | null> = {}
     if (validatedData.name !== undefined) updateData.name = validatedData.name
     if (validatedData.location !== undefined) updateData.location = validatedData.location
     if (validatedData.startDate !== undefined) updateData.start_date = validatedData.startDate

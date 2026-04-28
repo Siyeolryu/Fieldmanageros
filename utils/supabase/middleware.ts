@@ -45,17 +45,9 @@ export const updateSession = async (request: NextRequest) => {
     return supabaseResponse;
   }
 
-  // 보호된 페이지 경로 설정 (API 제외)
-  const protectedPaths = ['/dashboard', '/companies', '/sites', '/workers', '/attendance', '/payroll']
-  const isProtectedPath = protectedPaths.some((path) => request.nextUrl.pathname.startsWith(path))
-
-  // 인증이 필요한 페이지인데 로그인하지 않은 경우
-  if (isProtectedPath && !user) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/'
-    redirectUrl.searchParams.set('redirect', request.nextUrl.pathname)
-    return NextResponse.redirect(redirectUrl)
-  }
+  // 게스트 모드 허용: 모든 페이지 접근 가능
+  // UI는 모두 보이지만, 데이터 저장 시 로그인 유도 메시지 표시
+  // 보호된 페이지 경로 설정은 제거 - 게스트도 UI 접근 가능
 
   // 이미 로그인한 사용자가 로그인 페이지 접근 시 대시보드로 리다이렉트
   if ((request.nextUrl.pathname === '/auth/login' || request.nextUrl.pathname === '/auth/signup') && user) {

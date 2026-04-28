@@ -69,7 +69,7 @@ export function calculateAutoWeeklyHolidayPay(
   let totalWeeklyHolidayPay = 0
   let eligibleWeeks = 0
 
-  weeklyHours.forEach((hours, weekNumber) => {
+  weeklyHours.forEach((hours) => {
     // 주 15시간 이상 근무한 경우에만 주휴수당 지급
     if (hours >= WEEKLY_HOLIDAY_CONSTANTS.MIN_WEEKLY_HOURS) {
       // 주휴수당 = (실제 근무시간 / 소정근로시간) × 1일 소정근로시간 × 시급

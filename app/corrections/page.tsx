@@ -103,8 +103,9 @@ export default function CorrectionsPage() {
       setReviewingId(null)
       setReviewNotes('')
       fetchRequests()
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '승인 실패'
+      toast.error(message)
     }
   }
 
@@ -130,8 +131,9 @@ export default function CorrectionsPage() {
       setReviewingId(null)
       setReviewNotes('')
       fetchRequests()
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '거부 실패'
+      toast.error(message)
     }
   }
 

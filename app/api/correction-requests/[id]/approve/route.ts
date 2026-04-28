@@ -71,9 +71,12 @@ export async function POST(
     })
 
     // Apply the changes to the attendance record
-    const updateData: any = {}
+    const updateData: {
+      hoursWorked?: number
+      notes?: string
+    } = {}
     if (correctionRequest.requestedHours !== null) {
-      updateData.hoursWorked = correctionRequest.requestedHours
+      updateData.hoursWorked = Number(correctionRequest.requestedHours)
     }
     if (correctionRequest.requestedNotes !== null) {
       updateData.notes = correctionRequest.requestedNotes
@@ -87,8 +90,9 @@ export async function POST(
     }
 
     return NextResponse.json({ data: updated })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error approving correction request:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }

@@ -77,8 +77,9 @@ export default function PayrollGenerateModal({
 
       onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '급여 생성에 실패했습니다.'
+      setError(message)
     } finally {
       setLoading(false)
     }

@@ -4,7 +4,14 @@ import { useRouter } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { useState } from 'react'
 
-export default function AuthButton({ user }: { user: any }) {
+interface User {
+  email?: string
+  user_metadata?: {
+    full_name?: string
+  }
+}
+
+export default function AuthButton({ user }: { user: User | null }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 

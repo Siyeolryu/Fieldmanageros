@@ -12,7 +12,7 @@ export default function ProfilePage() {
   const { setUser, activeRole, setActiveRole } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [user, setUserState] = useState<any>(null)
+  const [user, setUserState] = useState<{ id: string; email: string } | null>(null)
   const [fullName, setFullName] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [userType, setUserType] = useState<'manager' | 'both' | 'worker'>('manager')
@@ -57,7 +57,7 @@ export default function ProfilePage() {
           userType: profile.user_type || 'manager',
         })
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error loading profile:', err)
     } finally {
       setLoading(false)
@@ -100,9 +100,10 @@ export default function ProfilePage() {
 
       // 3초 후 성공 메시지 제거
       setTimeout(() => setSuccess(''), 3000)
-    } catch (err: any) {
-      setError(err.message || '프로필 업데이트에 실패했습니다.')
-      toast.error(err.message || '프로필 업데이트에 실패했습니다.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '프로필 업데이트에 실패했습니다.'
+      setError(message)
+      toast.error(message)
     } finally {
       setSaving(false)
     }
@@ -118,8 +119,9 @@ export default function ProfilePage() {
       if (error) throw error
 
       setSuccess('비밀번호 재설정 이메일이 발송되었습니다.')
-    } catch (err: any) {
-      setError(err.message || '비밀번호 재설정 이메일 발송에 실패했습니다.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '비밀번호 재설정 이메일 발송에 실패했습니다.'
+      setError(message)
     }
   }
 
@@ -220,7 +222,7 @@ export default function ProfilePage() {
                     name="userType"
                     value="manager"
                     checked={userType === 'manager'}
-                    onChange={(e) => setUserType(e.target.value as any)}
+                    onChange={(e) => setUserType(e.target.value as 'manager' | 'both' | 'worker')}
                     className="mt-1 w-4 h-4 text-sky-500 focus:ring-sky-500"
                   />
                   <div className="flex-1">
@@ -235,7 +237,7 @@ export default function ProfilePage() {
                     name="userType"
                     value="both"
                     checked={userType === 'both'}
-                    onChange={(e) => setUserType(e.target.value as any)}
+                    onChange={(e) => setUserType(e.target.value as 'manager' | 'both' | 'worker')}
                     className="mt-1 w-4 h-4 text-sky-500 focus:ring-sky-500"
                   />
                   <div className="flex-1">
@@ -250,7 +252,7 @@ export default function ProfilePage() {
                     name="userType"
                     value="worker"
                     checked={userType === 'worker'}
-                    onChange={(e) => setUserType(e.target.value as any)}
+                    onChange={(e) => setUserType(e.target.value as 'manager' | 'both' | 'worker')}
                     className="mt-1 w-4 h-4 text-sky-500 focus:ring-sky-500"
                   />
                   <div className="flex-1">

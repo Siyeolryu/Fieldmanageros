@@ -62,7 +62,7 @@ export async function PATCH(
     const body = await request.json()
     const validatedData = updatePayrollSchema.parse(body)
 
-    const updateData: any = {}
+    const updateData: Record<string, string | number | null> = {}
     if (validatedData.paidAt !== undefined) updateData.paid_at = validatedData.paidAt
     if (validatedData.basePay !== undefined) updateData.base_pay = validatedData.basePay
     if (validatedData.weeklyHolidayPay !== undefined) updateData.weekly_holiday_pay = validatedData.weeklyHolidayPay

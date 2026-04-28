@@ -35,7 +35,6 @@ export async function GET() {
       .in('company_id', companyIds)
 
     const siteIds = sites?.map((s) => s.id) || []
-    const activeSiteIds = sites?.filter((s) => s.is_active).map((s) => s.id) || []
 
     if (siteIds.length === 0) {
       return NextResponse.json({ compliance: [] })

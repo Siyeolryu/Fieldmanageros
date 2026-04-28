@@ -20,19 +20,25 @@ interface CostSplitterModalProps {
     onClose: () => void
 }
 
+interface Worker {
+    id: string
+    name: string
+    hourlyRate: number
+    isActive: boolean
+}
+
 export default function CostSplitterModal({ isOpen, onClose }: CostSplitterModalProps) {
     const { selectedSite } = useAppStore()
     const [targetBudget, setTargetBudget] = useState<number>(10000000) // 기본 1,000만원
-    const [workers, setWorkers] = useState<any[]>([])
+    const [workers, setWorkers] = useState<Worker[]>([])
     const [proposals, setProposals] = useState<WorkerProposal[]>([])
-    const [isLoading, setIsLoading] = useState(false)
 
     // 현장 근로자 불러오기
     useEffect(() => {
         if (isOpen && selectedSite) {
             fetch(`/api/workers?siteId=${selectedSite.id}`)
                 .then(res => res.json())
-                .then(data => setWorkers(data.filter((w: any) => w.isActive)))
+                .then(data => setWorkers(data.filter((w: Worker) => w.isActive)))
         }
     }, [isOpen, selectedSite])
 
@@ -193,7 +199,7 @@ export default function CostSplitterModal({ isOpen, onClose }: CostSplitterModal
                         <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl">
                             <p className="text-xs text-blue-700 leading-relaxed">
                                 💡 <strong>이 도구는 시뮬레이션입니다.</strong> 실제 데이터에 반영하려면:<br/>
-                                1. "복사" 버튼으로 결과를 복사하거나<br/>
+                                1. &quot;복사&quot; 버튼으로 결과를 복사하거나<br/>
                                 2. 각 근로자의 시급을 수동으로 조정한 후<br/>
                                 3. 노임대장 페이지에서 정산을 진행하세요.
                             </p>

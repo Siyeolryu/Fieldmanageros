@@ -7,7 +7,7 @@ export async function GET() {
     const supabase = await createSupabaseServerClient()
 
     // 1. 데이터베이스 연결 확인
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('companies')
       .select('count')
       .limit(1)

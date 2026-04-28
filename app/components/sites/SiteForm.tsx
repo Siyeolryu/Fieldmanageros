@@ -95,9 +95,10 @@ export default function SiteForm({ initialData, companies, isEdit = false, userP
       })
       router.push('/sites')
       router.refresh()
-    } catch (error: any) {
-      setErrorMsg(error.message)
-      toast.error(error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '저장 중 오류가 발생했습니다'
+      setErrorMsg(message)
+      toast.error(message)
     }
   }
 

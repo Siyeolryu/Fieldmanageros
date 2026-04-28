@@ -62,9 +62,10 @@ export default function SitesPage() {
 
       const data = await res.json()
       setSites(data)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching sites:', error)
-      setError(error.message || '현장 목록을 불러오는 중 오류가 발생했습니다.')
+      const message = error instanceof Error ? error.message : '현장 목록을 불러오는 중 오류가 발생했습니다.'
+      setError(message)
     } finally {
       setIsLoading(false)
     }
@@ -152,7 +153,7 @@ export default function SitesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          {sites.map((site: any) => (
+          {sites.map((site: { id: string }) => (
             <SiteCard key={site.id} site={site} />
           ))}
         </div>

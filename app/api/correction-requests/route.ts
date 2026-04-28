@@ -21,7 +21,13 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || 'pending'
     const requestedBy = searchParams.get('requestedBy') // For worker: only their requests
 
-    const where: any = {
+    const where: {
+      status: string
+      requestedBy?: string
+      attendance?: {
+        siteId: string
+      }
+    } = {
       status,
     }
 
@@ -65,9 +71,10 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json({ data: requests })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching correction requests:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
 
@@ -130,8 +137,9 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ data: correctionRequest }, { status: 201 })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creating correction request:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }

@@ -119,7 +119,12 @@ export async function POST(request: Request) {
 
     // 3. 급여 계산 수행
     const result = calculateMonthlyPayroll(
-      attendances as any,
+      attendances as Array<{
+        id: string
+        date: string
+        hours_worked: number
+        is_weekly_holiday: boolean
+      }>,
       worker.hourly_rate,
       validatedData.weeklyHolidayCount
     )

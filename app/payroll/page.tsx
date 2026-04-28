@@ -22,7 +22,24 @@ export default function PayrollPage() {
     return idNum;
   };
 
-  const exportToExcel = (siteName: string, y: number, m: number, data: any[]) => {
+  interface PayrollRecord {
+    workerId: string
+    worker?: {
+      name: string
+      idNumber: string
+      hourlyRate: number
+    }
+    totalHours: number
+    basePay: number
+    overtimePay: number
+    weeklyHolidayPay: number
+    totalPay: number
+    totalDeduction: number
+    netPay: number
+    totalWorkDays: number
+  }
+
+  const exportToExcel = (siteName: string, y: number, m: number, data: PayrollRecord[]) => {
     if (!data.length) return
     const wsData = [
       [`${y}년 ${m}월 노임대장 - ${siteName}`],
@@ -53,7 +70,7 @@ export default function PayrollPage() {
   
   const [year, setYear] = useState(new Date().getFullYear())
   const [month, setMonth] = useState(new Date().getMonth() + 1)
-  const [payrolls, setPayrolls] = useState<any[]>([])
+  const [payrolls, setPayrolls] = useState<PayrollRecord[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
 
@@ -62,7 +79,7 @@ export default function PayrollPage() {
 
   // 명세서 모달용 상태
   const [isStubModalOpen, setIsStubModalOpen] = useState(false)
-  const [selectedRecord, setSelectedRecord] = useState<any>(null)
+  const [selectedRecord, setSelectedRecord] = useState<PayrollRecord | null>(null)
 
   // Excel 업로드 모달용 상태
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
@@ -76,8 +93,8 @@ export default function PayrollPage() {
         const data = await res.json()
         setPayrolls(data)
         const newMap: Record<string, number> = {}
-        data.forEach((p: any) => {
-            const count = p.weeklyHolidayPay / (p.worker?.hourlyRate * 8) || 0
+        data.forEach((p: PayrollRecord) => {
+            const count = p.weeklyHolidayPay / ((p.worker?.hourlyRate || 1) * 8) || 0
             newMap[p.workerId] = count
         })
         setWeeklyHolidayMap(newMap)
@@ -96,7 +113,7 @@ export default function PayrollPage() {
   const handleRecommendWeeklyHoliday = () => {
     const newMap = { ...weeklyHolidayMap }
     let count = 0
-    payrolls.forEach(p => {
+    payrolls.forEach((p: PayrollRecord) => {
         if (p.totalWorkDays >= 5) {
             newMap[p.workerId] = 1.0
             count++
@@ -129,7 +146,7 @@ export default function PayrollPage() {
       await Promise.all(promises)
       fetchPayrolls()
       if (isBulk) alert('정산이 완료되었습니다.')
-    } catch (error) {
+    } catch {
       alert('정산 중 오류가 발생했습니다.')
     } finally {
       if (isBulk) setIsGenerating(false)
@@ -142,7 +159,7 @@ export default function PayrollPage() {
     count: acc.count + 1
   }), { totalPay: 0, netPay: 0, count: 0 })
 
-  const handleShowStub = (record: any) => {
+  const handleShowStub = (record: PayrollRecord) => {
     setSelectedRecord(record)
     setIsStubModalOpen(true)
   }

@@ -73,9 +73,10 @@ export default function CompaniesPage() {
 
       const data = await res.json()
       setCompanies(data)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching companies:', err)
-      setError(err.message || '건설사 목록을 불러오는 중 오류가 발생했습니다.')
+      const message = err instanceof Error ? err.message : '건설사 목록을 불러오는 중 오류가 발생했습니다.'
+      setError(message)
     } finally {
       setIsLoading(false)
     }

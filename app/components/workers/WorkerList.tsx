@@ -97,19 +97,6 @@ const WorkerList: React.FC<WorkerListProps> = ({ onEdit }) => {
     }
   }, [selectedSite])
 
-  const toggleStatus = async (worker: Worker) => {
-    try {
-      const res = await fetch(`/api/workers/${worker.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !worker.is_active }),
-      })
-      if (res.ok) fetchWorkers()
-    } catch (error) {
-      console.error('Failed to update status:', error)
-    }
-  }
-
   if (!selectedSite) {
     return (
       <div className="p-12 text-center bg-white rounded-3xl border-2 border-dashed border-gray-200">

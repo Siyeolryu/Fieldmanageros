@@ -17,14 +17,6 @@ const nextConfig = {
   },
   // Vercel 배포 시 프로젝트 루트를 명확히 지정하여 상위 디렉토리 lockfile 경고 해결
   outputFileTracingRoot: process.cwd(),
-  eslint: {
-    // 개발 중에는 warning 허용, 출시 전에는 false로 변경
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    // 개발 중에는 warning 허용, 출시 전에는 false로 변경
-    ignoreBuildErrors: true,
-  },
   images: {
     remotePatterns: [
       {

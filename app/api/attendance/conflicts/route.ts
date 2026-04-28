@@ -81,7 +81,14 @@ export async function GET(request: Request) {
     })
 
     // 주별 근무 시간 확인 (주 52시간 초과)
-    const weeklyHours = new Map<string, { total: number; records: any[] }>()
+    type AttendanceRecord = {
+      worker_id: string
+      date: string
+      hours_worked: number
+      workers: { name: string } | null
+    }
+
+    const weeklyHours = new Map<string, { total: number; records: AttendanceRecord[] }>()
 
     attendance?.forEach((record) => {
       const weekKey = `${record.worker_id}-${getWeekOfYear(new Date(record.date))}`
@@ -93,7 +100,7 @@ export async function GET(request: Request) {
       week.records.push(record)
     })
 
-    weeklyHours.forEach((week, key) => {
+    weeklyHours.forEach((week) => {
       if (week.total > 52 && week.records.length > 0) {
         const firstRecord = week.records[0]
         conflicts.push({

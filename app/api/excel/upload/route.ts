@@ -39,7 +39,25 @@ export async function POST(request: Request) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    let result: any
+    let result: {
+      type: string
+      total?: number
+      saved?: number
+      failed?: number
+      errors?: unknown[]
+      workers?: {
+        total: number
+        saved: number
+        failed: number
+        errors: unknown[]
+      }
+      attendance?: {
+        total: number
+        saved: number
+        failed: number
+        errors: unknown[]
+      }
+    }
 
     switch (type) {
       case 'attendance': {

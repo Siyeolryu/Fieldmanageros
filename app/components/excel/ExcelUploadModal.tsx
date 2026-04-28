@@ -12,6 +12,26 @@ interface ExcelUploadModalProps {
   type: 'attendance' | 'workers' | 'ledger'
 }
 
+interface UploadResult {
+  type: string
+  total?: number
+  saved?: number
+  failed?: number
+  errors?: unknown[]
+  workers?: {
+    total: number
+    saved: number
+    failed: number
+    errors: unknown[]
+  }
+  attendance?: {
+    total: number
+    saved: number
+    failed: number
+    errors: unknown[]
+  }
+}
+
 export default function ExcelUploadModal({
   isOpen,
   onClose,
@@ -21,7 +41,7 @@ export default function ExcelUploadModal({
 }: ExcelUploadModalProps) {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<UploadResult | null>(null)
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -79,8 +99,9 @@ export default function ExcelUploadModal({
         onSuccess()
         handleClose()
       }, 3000)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '업로드 실패'
+      setError(message)
     } finally {
       setUploading(false)
     }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseServer'
-import { startOfMonth, endOfMonth, startOfToday, endOfToday, subDays } from 'date-fns'
+import { startOfMonth, endOfMonth, startOfToday, subDays } from 'date-fns'
 
 export async function GET(request: Request) {
   try {

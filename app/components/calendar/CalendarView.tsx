@@ -375,7 +375,7 @@ const CalendarView: React.FC = () => {
                       setIsDetailModalOpen(false)
                       setSelectedAttendance(null)
                       fetchData()
-                    } catch (error) {
+                    } catch {
                       toast.error('삭제 중 오류가 발생했습니다.')
                     }
                   }}

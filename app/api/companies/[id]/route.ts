@@ -50,7 +50,12 @@ export async function PATCH(
     const body = await request.json()
     const validatedData = updateCompanySchema.parse(body)
 
-    const updateData: any = {}
+    const updateData: {
+      name?: string
+      business_number?: string
+      phone?: string
+      address?: string
+    } = {}
     if (validatedData.name !== undefined) updateData.name = validatedData.name
     if (validatedData.businessNumber !== undefined) updateData.business_number = validatedData.businessNumber
     if (validatedData.phone !== undefined) updateData.phone = validatedData.phone

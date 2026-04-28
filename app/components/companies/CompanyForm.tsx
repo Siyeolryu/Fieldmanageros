@@ -86,9 +86,10 @@ export default function CompanyForm({ initialData, ownerId, isEdit = false }: Co
       })
       router.push('/companies')
       router.refresh()
-    } catch (error: any) {
-      setErrorMsg(error.message)
-      toast.error(error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다'
+      setErrorMsg(message)
+      toast.error(message)
     }
   }
 

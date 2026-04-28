@@ -1,12 +1,11 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createSupabaseClient } from '@/lib/supabase/client'
 
 function ConfirmEmailContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email')
 

@@ -23,7 +23,7 @@ export default function DeleteCompanyButton({ companyId }: { companyId: string }
 
       router.push('/companies')
       router.refresh()
-    } catch (error) {
+    } catch {
       alert('삭제 중 오류가 발생했습니다.')
       setIsDeleting(false)
     }

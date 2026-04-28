@@ -74,7 +74,7 @@ export async function PATCH(
     const body = await request.json()
     const validatedData = updateWorkerSchema.parse(body)
 
-    const updateData: any = {}
+    const updateData: Record<string, string | number | boolean | null> = {}
     if (validatedData.siteId !== undefined) updateData.site_id = validatedData.siteId
     if (validatedData.name !== undefined) updateData.name = validatedData.name
     if (validatedData.phone !== undefined) updateData.phone = validatedData.phone

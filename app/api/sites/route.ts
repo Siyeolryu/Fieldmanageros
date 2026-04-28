@@ -64,12 +64,13 @@ export async function GET(request: Request) {
     )
 
     return NextResponse.json(sitesWithCount)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching sites:', error)
+    const message = error instanceof Error ? error.message : 'Unknown error occurred'
     return NextResponse.json(
       {
         error: '현장 목록을 불러오는 중 오류가 발생했습니다.',
-        details: error.message
+        details: message
       },
       { status: 500 }
     )

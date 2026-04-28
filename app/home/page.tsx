@@ -30,7 +30,7 @@ export default function HomePage() {
     todayAttendance: number
     monthlyCost: number
     riskWorkers: { name: string, days: number }[]
-    chartData: any[]
+    chartData: Array<{ date: string; amount: number }>
   }>({
     totalWorkers: 0,
     todayAttendance: 0,
@@ -283,8 +283,8 @@ export default function HomePage() {
         <div className="space-y-6">
             <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
                 <p className="text-sm text-blue-700 font-bold leading-relaxed">
-                    "현재 현장의 노무비 지출은 지난달 동일 기간 대비 약 <span className="underline">4.2% 감소</span>했습니다.
-                    인건비 효율이 높은 상태이며, 현재 추세 유지 시 예상 월 총액은 예산 범위 내에 있을 것으로 판단됩니다."
+                    &quot;현재 현장의 노무비 지출은 지난달 동일 기간 대비 약 <span className="underline">4.2% 감소</span>했습니다.
+                    인건비 효율이 높은 상태이며, 현재 추세 유지 시 예상 월 총액은 예산 범위 내에 있을 것으로 판단됩니다.&quot;
                 </p>
             </div>
 

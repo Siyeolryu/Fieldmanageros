@@ -28,7 +28,7 @@ export function parseAttendanceExcel(buffer: Buffer): ParsedAttendanceRow[] {
   const sheet = workbook.Sheets[sheetName]
 
   // JSON으로 변환
-  const data: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+  const data: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 })
 
   // 첫 행은 헤더로 간주하고 건너뜀
   const rows = data.slice(1)
@@ -91,7 +91,7 @@ export function parseWorkersExcel(buffer: Buffer): ParsedWorkerRow[] {
   const sheetName = workbook.SheetNames[0]
   const sheet = workbook.Sheets[sheetName]
 
-  const data: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+  const data: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 })
   const rows = data.slice(1)
 
   const parsed: ParsedWorkerRow[] = []
@@ -139,13 +139,13 @@ export function parsePayrollLedgerExcel(buffer: Buffer): {
   const sheetName = workbook.SheetNames[0]
   const sheet = workbook.Sheets[sheetName]
 
-  const data: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+  const data: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 })
 
   // 헤더 분석 (날짜 컬럼 찾기)
   const headerRow = data[0] || []
   const dateColumns: number[] = []
 
-  headerRow.forEach((cell: any, index: number) => {
+  headerRow.forEach((cell: unknown, index: number) => {
     if (index > 5 && cell) {
       // 6번째 컬럼부터 날짜로 간주
       dateColumns.push(index)

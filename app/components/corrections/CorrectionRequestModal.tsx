@@ -64,8 +64,9 @@ export default function CorrectionRequestModal({
       toast.success('수정 요청이 제출되었습니다')
       onSuccess()
       handleClose()
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '수정 요청 제출 실패'
+      toast.error(message)
     } finally {
       setSubmitting(false)
     }

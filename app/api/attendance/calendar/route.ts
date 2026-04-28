@@ -31,13 +31,23 @@ export async function GET(request: Request) {
     if (error) throw error
 
     // 날짜별로 그룹화
+    type AttendanceRecord = {
+      id: string
+      date: string
+      worker_id: string
+      hours_worked: number
+      is_weekly_holiday: boolean
+      notes: string | null
+      workers: { name: string } | null
+    }
+
     const calendar: Record<
       string,
       {
         date: string
         totalWorkers: number
         totalHours: number
-        records: any[]
+        records: AttendanceRecord[]
       }
     > = {}
 
