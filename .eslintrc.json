@@ -2,5 +2,17 @@
   "extends": "next/core-web-vitals",
   "rules": {
     "react-hooks/set-state-in-effect": "off"
-  }
+  },
+  "ignorePatterns": [
+    ".next/**",
+    "out/**",
+    "dist/**",
+    "build/**",
+    "node_modules/**",
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
+    "*.config.js",
+    "*.config.mjs"
+  ]
 }

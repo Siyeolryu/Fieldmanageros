@@ -1,3 +1,24 @@
+// 환경 변수 검증
+const requiredEnvVars = [
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  'DATABASE_URL',
+  'DIRECT_URL',
+]
+
+// 프로덕션 환경에서만 필수 환경 변수 검증
+if (process.env.NODE_ENV === 'production') {
+  const missingVars = requiredEnvVars.filter((envVar) => !process.env[envVar])
+
+  if (missingVars.length > 0) {
+    throw new Error(
+      `❌ Missing required environment variables:\n${missingVars.map(v => `  - ${v}`).join('\n')}\n\nPlease set these variables in your deployment environment.`
+    )
+  }
+
+  console.log('✅ All required environment variables are set')
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
