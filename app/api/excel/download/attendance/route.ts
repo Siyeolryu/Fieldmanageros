@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import prisma from '@/lib/prisma'
 import { generateAttendanceExcel } from '@/lib/excel/generator'
 
 // GET /api/excel/download/attendance?siteId=xxx&year=2026&month=4
@@ -28,12 +29,18 @@ export async function GET(request: Request) {
       )
     }
 
-    // 현장 정보 - RLS가 자동으로 소유권 검증
-    const { data: site } = await supabase
-      .from('sites')
-      .select('name')
-      .eq('id', siteId)
-      .single()
+    // 현장 정보 및 소유권 검증
+    const site = await prisma.site.findFirst({
+      where: {
+        id: siteId,
+        company: {
+          ownerId: user.id,
+        },
+      },
+      select: {
+        name: true,
+      },
+    })
 
     if (!site) {
       return NextResponse.json(
@@ -42,19 +49,29 @@ export async function GET(request: Request) {
       )
     }
 
-    const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0]
-    const endDate = new Date(year, month, 0).toISOString().split('T')[0]
+    const startDate = new Date(year, month - 1, 1)
+    const endDate = new Date(year, month, 0)
 
-    // 출근 데이터 조회 - RLS가 자동으로 소유권 검증
-    const { data: attendance, error: attendanceError } = await supabase
-      .from('attendance')
-      .select('*, workers(name)')
-      .eq('site_id', siteId)
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .order('date', { ascending: true })
-
-    if (attendanceError) throw attendanceError
+    // 출근 데이터 조회
+    const attendance = await prisma.attendance.findMany({
+      where: {
+        siteId,
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        worker: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        date: 'asc',
+      },
+    })
 
     if (!attendance || attendance.length === 0) {
       return NextResponse.json(
@@ -66,15 +83,14 @@ export async function GET(request: Request) {
     // 엑셀 생성
     const excelBuffer = generateAttendanceExcel(
       attendance.map((a) => ({
-        workerName: a.workers?.name || '근로자',
+        workerName: a.worker.name,
         date: new Date(a.date),
-        hoursWorked: Number(a.hours_worked),
-        isWeeklyHoliday: a.is_weekly_holiday || false,
+        hoursWorked: Number(a.hoursWorked),
+        isWeeklyHoliday: a.isWeeklyHoliday,
         notes: a.notes || undefined,
       })),
       year,
-      month,
-      site.name
+      month
     )
 
     // 파일명 생성

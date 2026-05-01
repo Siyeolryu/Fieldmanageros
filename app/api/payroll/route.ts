@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import prisma from '@/lib/prisma'
 import { z } from 'zod'
 import { calculateMonthlyPayroll } from '@/lib/payroll'
+import { Decimal } from '@prisma/client/runtime/library'
 
 // 급여 생성 요청 검증 스키마
 const payrollSchema = z.object({
@@ -31,34 +33,46 @@ export async function GET(request: Request) {
     const year = searchParams.get('year')
     const month = searchParams.get('month')
 
-    // RLS가 자동으로 현재 사용자의 급여만 필터링
-    let query = supabase
-      .from('payroll')
-      .select('*, workers(name, phone, id_number, hourly_rate)')
-      .order('created_at', { ascending: false })
-
-    if (siteId) query = query.eq('site_id', siteId)
-    if (year) query = query.eq('year', parseInt(year))
-    if (month) query = query.eq('month', parseInt(month))
-
-    const { data: payrolls, error } = await query
-
-    if (error) throw error
-
-    // workers 필드를 worker로 변환 (호환성 유지)
-    const formattedPayrolls = payrolls?.map(p => ({
-      ...p,
-      workerId: p.worker_id,
-      worker: {
-        name: p.workers?.name,
-        phone: p.workers?.phone,
-        idNumber: p.workers?.id_number,
-        hourlyRate: p.workers?.hourly_rate,
+    // 현재 사용자의 급여만 조회 (소유권 검증)
+    const where: {
+      siteId?: string
+      year?: number
+      month?: number
+      site: {
+        company: {
+          ownerId: string
+        }
+      }
+    } = {
+      site: {
+        company: {
+          ownerId: user.id,
+        },
       },
-      workers: undefined,
-    }))
+    }
 
-    return NextResponse.json(formattedPayrolls)
+    if (siteId) where.siteId = siteId
+    if (year) where.year = parseInt(year)
+    if (month) where.month = parseInt(month)
+
+    const payrolls = await prisma.payroll.findMany({
+      where,
+      include: {
+        worker: {
+          select: {
+            name: true,
+            phone: true,
+            idNumber: true,
+            hourlyRate: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    })
+
+    return NextResponse.json(payrolls)
   } catch (error) {
     console.error('Error fetching payrolls:', error)
     return NextResponse.json(
@@ -85,30 +99,36 @@ export async function POST(request: Request) {
     const body = await request.json()
     const validatedData = payrollSchema.parse(body)
 
-    // 1. 근로자 정보 조회 (시급 확인 필요) - RLS가 소유권 검증
-    const { data: worker, error: workerError } = await supabase
-      .from('workers')
-      .select('*')
-      .eq('id', validatedData.workerId)
-      .single()
+    // 1. 근로자 정보 조회 및 소유권 검증
+    const worker = await prisma.worker.findFirst({
+      where: {
+        id: validatedData.workerId,
+        site: {
+          company: {
+            ownerId: user.id,
+          },
+        },
+      },
+    })
 
-    if (workerError || !worker) {
+    if (!worker) {
       return NextResponse.json({ error: '근로자를 찾을 수 없습니다.' }, { status: 404 })
     }
 
-    // 2. 해당 월의 출근 기록 조회 - RLS가 소유권 검증
-    const startDate = new Date(validatedData.year, validatedData.month - 1, 1).toISOString().split('T')[0]
-    const endDate = new Date(validatedData.year, validatedData.month, 0).toISOString().split('T')[0]
+    // 2. 해당 월의 출근 기록 조회
+    const startDate = new Date(validatedData.year, validatedData.month - 1, 1)
+    const endDate = new Date(validatedData.year, validatedData.month, 0)
 
-    const { data: attendances, error: attendanceError } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('worker_id', validatedData.workerId)
-      .eq('site_id', validatedData.siteId)
-      .gte('date', startDate)
-      .lte('date', endDate)
-
-    if (attendanceError) throw attendanceError
+    const attendances = await prisma.attendance.findMany({
+      where: {
+        workerId: validatedData.workerId,
+        siteId: validatedData.siteId,
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    })
 
     if (!attendances || attendances.length === 0) {
       return NextResponse.json(
@@ -119,43 +139,61 @@ export async function POST(request: Request) {
 
     // 3. 급여 계산 수행
     const result = calculateMonthlyPayroll(
-      attendances as Array<{
-        id: string
-        date: string
-        hours_worked: number
-        is_weekly_holiday: boolean
-      }>,
-      worker.hourly_rate,
+      attendances.map(a => ({
+        id: a.id,
+        worker_id: a.workerId,
+        site_id: a.siteId,
+        date: a.date.toISOString().split('T')[0],
+        hours_worked: Number(a.hoursWorked),
+        is_weekly_holiday: a.isWeeklyHoliday,
+      })),
+      worker.hourlyRate,
       validatedData.weeklyHolidayCount
     )
 
-    // 4. 급여 명세 저장 (Upsert) - RLS가 소유권 검증
-    const { data: payroll, error: payrollError } = await supabase
-      .from('payroll')
-      .upsert({
-        worker_id: validatedData.workerId,
-        site_id: validatedData.siteId,
+    // 4. 급여 명세 저장 (Upsert)
+    const payroll = await prisma.payroll.upsert({
+      where: {
+        workerId_siteId_year_month: {
+          workerId: validatedData.workerId,
+          siteId: validatedData.siteId,
+          year: validatedData.year,
+          month: validatedData.month,
+        },
+      },
+      update: {
+        totalWorkDays: result.totalWorkDays,
+        totalHours: new Decimal(result.totalHours),
+        basePay: result.basePay,
+        weeklyHolidayPay: result.weeklyHolidayPay,
+        overtimePay: result.overtimePay,
+        totalPay: result.totalPay,
+        healthInsurance: result.healthInsurance,
+        pensionInsurance: result.pensionInsurance,
+        employmentInsurance: result.employmentInsurance,
+        incomeTax: result.incomeTax,
+        totalDeduction: result.totalDeduction,
+        netPay: result.netPay,
+      },
+      create: {
+        workerId: validatedData.workerId,
+        siteId: validatedData.siteId,
         year: validatedData.year,
         month: validatedData.month,
-        total_work_days: result.totalWorkDays,
-        total_hours: result.totalHours,
-        base_pay: result.basePay,
-        weekly_holiday_pay: result.weeklyHolidayPay,
-        overtime_pay: result.overtimePay,
-        total_pay: result.totalPay,
-        health_insurance: result.healthInsurance,
-        pension_insurance: result.pensionInsurance,
-        employment_insurance: result.employmentInsurance,
-        income_tax: result.incomeTax,
-        total_deduction: result.totalDeduction,
-        net_pay: result.netPay,
-      }, {
-        onConflict: 'worker_id,site_id,year,month'
-      })
-      .select()
-      .single()
-
-    if (payrollError) throw payrollError
+        totalWorkDays: result.totalWorkDays,
+        totalHours: new Decimal(result.totalHours),
+        basePay: result.basePay,
+        weeklyHolidayPay: result.weeklyHolidayPay,
+        overtimePay: result.overtimePay,
+        totalPay: result.totalPay,
+        healthInsurance: result.healthInsurance,
+        pensionInsurance: result.pensionInsurance,
+        employmentInsurance: result.employmentInsurance,
+        incomeTax: result.incomeTax,
+        totalDeduction: result.totalDeduction,
+        netPay: result.netPay,
+      },
+    })
 
     return NextResponse.json(payroll, { status: 201 })
   } catch (error) {

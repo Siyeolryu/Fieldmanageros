@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 // GET /api/dashboard/costs?months=6 - 인건비 추이
@@ -21,24 +21,24 @@ export async function GET(request: Request) {
     const months = parseInt(searchParams.get('months') || '6')
 
     // 사용자의 회사 조회
-    const { data: companies } = await supabaseAdmin
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
+    const companies = await prisma.company.findMany({
+      where: { ownerId: user.id },
+      select: { id: true },
+    })
 
-    const companyIds = companies?.map((c) => c.id) || []
+    const companyIds = companies.map((c) => c.id)
 
     if (companyIds.length === 0) {
       return NextResponse.json({ costs: [] })
     }
 
     // Get all sites
-    const { data: sites } = await supabaseAdmin
-      .from('sites')
-      .select('id')
-      .in('company_id', companyIds)
+    const sites = await prisma.site.findMany({
+      where: { companyId: { in: companyIds } },
+      select: { id: true },
+    })
 
-    const siteIds = sites?.map((s) => s.id) || []
+    const siteIds = sites.map((s) => s.id)
 
     if (siteIds.length === 0) {
       return NextResponse.json({ costs: [] })
@@ -61,17 +61,24 @@ export async function GET(request: Request) {
       const year = targetDate.getFullYear()
       const month = targetDate.getMonth() + 1
 
-      const { data: payrollData } = await supabaseAdmin
-        .from('payroll')
-        .select('total_pay, total_deduction, net_pay, worker_id')
-        .in('site_id', siteIds)
-        .eq('year', year)
-        .eq('month', month)
+      const payrollData = await prisma.payroll.findMany({
+        where: {
+          siteId: { in: siteIds },
+          year: year,
+          month: month,
+        },
+        select: {
+          totalPay: true,
+          totalDeduction: true,
+          netPay: true,
+          workerId: true,
+        },
+      })
 
-      const totalPay = payrollData?.reduce((sum, p) => sum + (p.total_pay || 0), 0) || 0
-      const totalDeduction = payrollData?.reduce((sum, p) => sum + (p.total_deduction || 0), 0) || 0
-      const netPay = payrollData?.reduce((sum, p) => sum + (p.net_pay || 0), 0) || 0
-      const uniqueWorkers = new Set(payrollData?.map((p) => p.worker_id) || [])
+      const totalPay = payrollData.reduce((sum, p) => sum + Number(p.totalPay || 0), 0)
+      const totalDeduction = payrollData.reduce((sum, p) => sum + Number(p.totalDeduction || 0), 0)
+      const netPay = payrollData.reduce((sum, p) => sum + Number(p.netPay || 0), 0)
+      const uniqueWorkers = new Set(payrollData.map((p) => p.workerId))
 
       monthlyData.push({
         year,

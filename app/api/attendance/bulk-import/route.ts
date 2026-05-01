@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { z } from 'zod'
 
 // 일괄 업로드 스키마
@@ -23,43 +23,44 @@ export async function POST(request: Request) {
     const { siteId, records } = bulkImportSchema.parse(body)
 
     // 현장 존재 확인
-    const { data: site, error: siteError } = await supabaseAdmin
-      .from('sites')
-      .select('id')
-      .eq('id', siteId)
-      .single()
+    const site = await prisma.site.findUnique({
+      where: { id: siteId },
+    })
 
-    if (siteError || !site) {
+    if (!site) {
       return NextResponse.json(
         { error: '현장을 찾을 수 없습니다.' },
         { status: 404 }
       )
     }
 
-    const results = []
-    const errors = []
+    const results: unknown[] = []
+    const errors: { workerId: string; date: string; error: string }[] = []
 
     for (const record of records) {
       try {
-        const { data: attendance, error } = await supabaseAdmin
-          .from('attendance')
-          .upsert(
-            {
-              worker_id: record.workerId,
-              site_id: siteId,
-              date: record.date,
-              hours_worked: record.hoursWorked,
-              is_weekly_holiday: record.isWeeklyHoliday,
-              notes: record.notes || null,
+        const attendance = await prisma.attendance.upsert({
+          where: {
+            workerId_siteId_date: {
+              workerId: record.workerId,
+              siteId: siteId,
+              date: new Date(record.date),
             },
-            {
-              onConflict: 'worker_id,site_id,date',
-            }
-          )
-          .select()
-          .single()
-
-        if (error) throw error
+          },
+          update: {
+            hoursWorked: record.hoursWorked,
+            isWeeklyHoliday: record.isWeeklyHoliday,
+            notes: record.notes || null,
+          },
+          create: {
+            workerId: record.workerId,
+            siteId: siteId,
+            date: new Date(record.date),
+            hoursWorked: record.hoursWorked,
+            isWeeklyHoliday: record.isWeeklyHoliday,
+            notes: record.notes || null,
+          },
+        })
 
         results.push(attendance)
       } catch (error) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 // GET /api/dashboard/overview - 전체 현황
@@ -24,14 +24,16 @@ export async function GET() {
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
     // 사용자의 회사 조회
-    const { data: companies, error: companiesError } = await supabaseAdmin
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
+    const companies = await prisma.company.findMany({
+      where: {
+        ownerId: user.id,
+      },
+      select: {
+        id: true,
+      },
+    })
 
-    if (companiesError) throw companiesError
-
-    const companyIds = companies?.map((c) => c.id) || []
+    const companyIds = companies.map((c) => c.id)
 
     if (companyIds.length === 0) {
       return NextResponse.json({
@@ -52,12 +54,19 @@ export async function GET() {
     }
 
     // Get all sites for these companies
-    const { data: companySites } = await supabaseAdmin
-      .from('sites')
-      .select('id, is_active')
-      .in('company_id', companyIds)
+    const companySites = await prisma.site.findMany({
+      where: {
+        companyId: {
+          in: companyIds,
+        },
+      },
+      select: {
+        id: true,
+        isActive: true,
+      },
+    })
 
-    const siteIds = companySites?.map((s) => s.id) || []
+    const siteIds = companySites.map((s) => s.id)
 
     if (siteIds.length === 0) {
       return NextResponse.json({
@@ -79,87 +88,116 @@ export async function GET() {
 
     // 통계 수집
     const [
-      totalSitesResult,
-      activeSitesResult,
-      totalWorkersResult,
-      activeWorkersResult,
-      thisMonthAttendanceResult,
+      totalSites,
+      activeSites,
+      totalWorkers,
+      activeWorkers,
+      thisMonthAttendance,
       thisMonthPayrollData,
       lastMonthPayrollData,
       unpaidPayrollData,
     ] = await Promise.all([
       // 전체 현장 수
-      supabaseAdmin
-        .from('sites')
-        .select('*', { count: 'exact', head: true })
-        .in('company_id', companyIds),
+      prisma.site.count({
+        where: {
+          companyId: {
+            in: companyIds,
+          },
+        },
+      }),
 
       // 활성 현장 수
-      supabaseAdmin
-        .from('sites')
-        .select('*', { count: 'exact', head: true })
-        .in('company_id', companyIds)
-        .eq('is_active', true),
+      prisma.site.count({
+        where: {
+          companyId: {
+            in: companyIds,
+          },
+          isActive: true,
+        },
+      }),
 
       // 전체 근로자 수
-      supabaseAdmin
-        .from('workers')
-        .select('*', { count: 'exact', head: true })
-        .in('site_id', siteIds),
+      prisma.worker.count({
+        where: {
+          siteId: {
+            in: siteIds,
+          },
+        },
+      }),
 
       // 활성 근로자 수
-      supabaseAdmin
-        .from('workers')
-        .select('*', { count: 'exact', head: true })
-        .in('site_id', siteIds)
-        .eq('is_active', true),
+      prisma.worker.count({
+        where: {
+          siteId: {
+            in: siteIds,
+          },
+          isActive: true,
+        },
+      }),
 
       // 이번 달 출근 기록 수
-      supabaseAdmin
-        .from('attendance')
-        .select('*', { count: 'exact', head: true })
-        .in('site_id', siteIds)
-        .gte('date', thisMonth.toISOString().split('T')[0])
-        .lt('date', nextMonth.toISOString().split('T')[0]),
+      prisma.attendance.count({
+        where: {
+          siteId: {
+            in: siteIds,
+          },
+          date: {
+            gte: thisMonth,
+            lt: nextMonth,
+          },
+        },
+      }),
 
       // 이번 달 급여 총액
-      supabaseAdmin
-        .from('payroll')
-        .select('total_pay')
-        .in('site_id', siteIds)
-        .eq('year', now.getFullYear())
-        .eq('month', now.getMonth() + 1),
+      prisma.payroll.findMany({
+        where: {
+          siteId: {
+            in: siteIds,
+          },
+          year: now.getFullYear(),
+          month: now.getMonth() + 1,
+        },
+        select: {
+          totalPay: true,
+        },
+      }),
 
       // 지난 달 급여 총액
-      supabaseAdmin
-        .from('payroll')
-        .select('total_pay')
-        .in('site_id', siteIds)
-        .eq('year', lastMonth.getFullYear())
-        .eq('month', lastMonth.getMonth() + 1),
+      prisma.payroll.findMany({
+        where: {
+          siteId: {
+            in: siteIds,
+          },
+          year: lastMonth.getFullYear(),
+          month: lastMonth.getMonth() + 1,
+        },
+        select: {
+          totalPay: true,
+        },
+      }),
 
       // 미지급 급여 총액
-      supabaseAdmin
-        .from('payroll')
-        .select('net_pay')
-        .in('site_id', siteIds)
-        .is('paid_at', null),
+      prisma.payroll.findMany({
+        where: {
+          siteId: {
+            in: siteIds,
+          },
+          paidAt: null,
+        },
+        select: {
+          netPay: true,
+        },
+      }),
     ])
-
-    const totalSites = totalSitesResult.count || 0
-    const activeSites = activeSitesResult.count || 0
-    const totalWorkers = totalWorkersResult.count || 0
-    const activeWorkers = activeWorkersResult.count || 0
-    const thisMonthAttendance = thisMonthAttendanceResult.count || 0
 
     // Calculate sum for payroll
     const thisMonthPayrollSum =
-      thisMonthPayrollData.data?.reduce((sum, p) => sum + (p.total_pay || 0), 0) || 0
+      thisMonthPayrollData.reduce((sum, p) => sum + (p.totalPay || 0), 0)
     const lastMonthPayrollSum =
-      lastMonthPayrollData.data?.reduce((sum, p) => sum + (p.total_pay || 0), 0) || 0
+      lastMonthPayrollData.reduce((sum, p) => sum + (p.totalPay || 0), 0)
     const unpaidPayrollSum =
-      unpaidPayrollData.data?.reduce((sum, p) => sum + (p.net_pay || 0), 0) || 0
-    const unpaidCount = unpaidPayrollData.data?.length || 0
+      unpaidPayrollData.reduce((sum, p) => sum + (p.netPay || 0), 0)
+    const unpaidCount = unpaidPayrollData.length
 
     const overview = {
       totalCompanies: companyIds.length,

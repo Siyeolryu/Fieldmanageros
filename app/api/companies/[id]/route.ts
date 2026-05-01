@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { z } from 'zod'
 
 // 수정 검증 스키마
@@ -17,13 +17,21 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const { data: company, error } = await supabaseAdmin
-      .from('companies')
-      .select('*, sites(id, name, location, is_active)')
-      .eq('id', id)
-      .single()
+    const company = await prisma.company.findUnique({
+      where: { id },
+      include: {
+        sites: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            isActive: true,
+          },
+        },
+      },
+    })
 
-    if (error || !company) {
+    if (!company) {
       return NextResponse.json(
         { error: '건설사를 찾을 수 없습니다.' },
         { status: 404 }
@@ -50,25 +58,15 @@ export async function PATCH(
     const body = await request.json()
     const validatedData = updateCompanySchema.parse(body)
 
-    const updateData: {
-      name?: string
-      business_number?: string
-      phone?: string
-      address?: string
-    } = {}
-    if (validatedData.name !== undefined) updateData.name = validatedData.name
-    if (validatedData.businessNumber !== undefined) updateData.business_number = validatedData.businessNumber
-    if (validatedData.phone !== undefined) updateData.phone = validatedData.phone
-    if (validatedData.address !== undefined) updateData.address = validatedData.address
-
-    const { data: company, error } = await supabaseAdmin
-      .from('companies')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) throw error
+    const company = await prisma.company.update({
+      where: { id },
+      data: {
+        ...(validatedData.name !== undefined && { name: validatedData.name }),
+        ...(validatedData.businessNumber !== undefined && { businessNumber: validatedData.businessNumber }),
+        ...(validatedData.phone !== undefined && { phone: validatedData.phone }),
+        ...(validatedData.address !== undefined && { address: validatedData.address }),
+      },
+    })
 
     return NextResponse.json(company)
   } catch (error) {
@@ -93,12 +91,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const { error } = await supabaseAdmin
-      .from('companies')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    await prisma.company.delete({
+      where: { id },
+    })
 
     return NextResponse.json(
       { message: '건설사가 성공적으로 삭제되었습니다.' },

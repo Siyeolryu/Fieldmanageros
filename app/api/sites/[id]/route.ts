@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { z } from 'zod'
 
 // 수정 검증 스키마
@@ -18,40 +18,32 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const { data: site, error } = await supabaseAdmin
-      .from('sites')
-      .select('*, companies(id, name)')
-      .eq('id', id)
-      .single()
+    const site = await prisma.site.findUnique({
+      where: { id },
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            workers: true,
+            attendance: true,
+          },
+        },
+      },
+    })
 
-    if (error || !site) {
+    if (!site) {
       return NextResponse.json(
         { error: '현장을 찾을 수 없습니다.' },
         { status: 404 }
       )
     }
 
-    // Get counts for workers and attendance
-    const [workersCount, attendanceCount] = await Promise.all([
-      supabaseAdmin
-        .from('workers')
-        .select('*', { count: 'exact', head: true })
-        .eq('site_id', id),
-      supabaseAdmin
-        .from('attendance')
-        .select('*', { count: 'exact', head: true })
-        .eq('site_id', id),
-    ])
-
-    return NextResponse.json({
-      ...site,
-      company: site.companies,
-      companies: undefined,
-      _count: {
-        workers: workersCount.count || 0,
-        attendance: attendanceCount.count || 0,
-      },
-    })
+    return NextResponse.json(site)
   } catch (error) {
     console.error('Error fetching site details:', error)
     return NextResponse.json(
@@ -71,21 +63,24 @@ export async function PATCH(
     const body = await request.json()
     const validatedData = updateSiteSchema.parse(body)
 
-    const updateData: Record<string, string | boolean | null> = {}
+    const updateData: {
+      name?: string
+      location?: string
+      startDate?: Date
+      endDate?: Date
+      isActive?: boolean
+    } = {}
+
     if (validatedData.name !== undefined) updateData.name = validatedData.name
     if (validatedData.location !== undefined) updateData.location = validatedData.location
-    if (validatedData.startDate !== undefined) updateData.start_date = validatedData.startDate
-    if (validatedData.endDate !== undefined) updateData.end_date = validatedData.endDate
-    if (validatedData.isActive !== undefined) updateData.is_active = validatedData.isActive
+    if (validatedData.startDate !== undefined) updateData.startDate = new Date(validatedData.startDate)
+    if (validatedData.endDate !== undefined) updateData.endDate = new Date(validatedData.endDate)
+    if (validatedData.isActive !== undefined) updateData.isActive = validatedData.isActive
 
-    const { data: site, error } = await supabaseAdmin
-      .from('sites')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) throw error
+    const site = await prisma.site.update({
+      where: { id },
+      data: updateData,
+    })
 
     return NextResponse.json(site)
   } catch (error) {
@@ -110,12 +105,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const { error } = await supabaseAdmin
-      .from('sites')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    await prisma.site.delete({
+      where: { id },
+    })
 
     return NextResponse.json(
       { message: '현장이 성공적으로 삭제되었습니다.' },

@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -13,17 +13,18 @@ export async function GET(request: Request) {
 
     if (!error && data.user) {
       // 프로필이 없으면 생성
-      const { data: existingProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('id')
-        .eq('id', data.user.id)
-        .single()
+      const existingProfile = await prisma.profile.findUnique({
+        where: { id: data.user.id },
+        select: { id: true },
+      })
 
       if (!existingProfile && data.user.email) {
-        await supabaseAdmin.from('profiles').insert({
-          id: data.user.id,
-          email: data.user.email,
-          full_name: data.user.user_metadata?.full_name || data.user.email.split('@')[0] || '사용자',
+        await prisma.profile.create({
+          data: {
+            id: data.user.id,
+            email: data.user.email,
+            fullName: data.user.user_metadata?.full_name || data.user.email.split('@')[0] || '사용자',
+          },
         })
       }
     }

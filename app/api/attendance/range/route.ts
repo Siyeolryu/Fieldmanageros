@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { z } from 'zod'
 
 // DELETE /api/attendance/range - 기간별 출근 기록 삭제
@@ -15,24 +15,22 @@ export async function DELETE(request: Request) {
     const body = await request.json()
     const { siteId, startDate, endDate, workerIds } = deleteRangeSchema.parse(body)
 
-    let query = supabaseAdmin
-      .from('attendance')
-      .delete()
-      .eq('site_id', siteId)
-      .gte('date', startDate)
-      .lte('date', endDate)
-
-    if (workerIds && workerIds.length > 0) {
-      query = query.in('worker_id', workerIds)
-    }
-
-    const { error, count } = await query
-
-    if (error) throw error
+    const result = await prisma.attendance.deleteMany({
+      where: {
+        siteId: siteId,
+        date: {
+          gte: new Date(startDate),
+          lte: new Date(endDate),
+        },
+        ...(workerIds && workerIds.length > 0 && {
+          workerId: { in: workerIds },
+        }),
+      },
+    })
 
     return NextResponse.json({
       success: true,
-      deleted: count || 0,
+      deleted: result.count,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

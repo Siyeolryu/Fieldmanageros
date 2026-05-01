@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { z } from 'zod'
 
 // 수정 검증 스키마
@@ -21,40 +21,32 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const { data: worker, error } = await supabaseAdmin
-      .from('workers')
-      .select('*, sites(id, name)')
-      .eq('id', id)
-      .single()
+    const worker = await prisma.worker.findUnique({
+      where: { id },
+      include: {
+        site: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            attendance: true,
+            payroll: true,
+          },
+        },
+      },
+    })
 
-    if (error || !worker) {
+    if (!worker) {
       return NextResponse.json(
         { error: '근로자를 찾을 수 없습니다.' },
         { status: 404 }
       )
     }
 
-    // Get counts for attendance and payroll
-    const [attendanceCount, payrollCount] = await Promise.all([
-      supabaseAdmin
-        .from('attendance')
-        .select('*', { count: 'exact', head: true })
-        .eq('worker_id', id),
-      supabaseAdmin
-        .from('payroll')
-        .select('*', { count: 'exact', head: true })
-        .eq('worker_id', id),
-    ])
-
-    return NextResponse.json({
-      ...worker,
-      site: worker.sites,
-      sites: undefined,
-      _count: {
-        attendance: attendanceCount.count || 0,
-        payroll: payrollCount.count || 0,
-      },
-    })
+    return NextResponse.json(worker)
   } catch (error) {
     console.error('Error fetching worker details:', error)
     return NextResponse.json(
@@ -74,24 +66,30 @@ export async function PATCH(
     const body = await request.json()
     const validatedData = updateWorkerSchema.parse(body)
 
-    const updateData: Record<string, string | number | boolean | null> = {}
-    if (validatedData.siteId !== undefined) updateData.site_id = validatedData.siteId
+    const updateData: {
+      siteId?: string
+      name?: string
+      phone?: string
+      idNumber?: string
+      bankName?: string
+      bankAccount?: string
+      hourlyRate?: number
+      isActive?: boolean
+    } = {}
+
+    if (validatedData.siteId !== undefined) updateData.siteId = validatedData.siteId
     if (validatedData.name !== undefined) updateData.name = validatedData.name
     if (validatedData.phone !== undefined) updateData.phone = validatedData.phone
-    if (validatedData.idNumber !== undefined) updateData.id_number = validatedData.idNumber
-    if (validatedData.bankName !== undefined) updateData.bank_name = validatedData.bankName
-    if (validatedData.bankAccount !== undefined) updateData.bank_account = validatedData.bankAccount
-    if (validatedData.hourlyRate !== undefined) updateData.hourly_rate = validatedData.hourlyRate
-    if (validatedData.isActive !== undefined) updateData.is_active = validatedData.isActive
+    if (validatedData.idNumber !== undefined) updateData.idNumber = validatedData.idNumber
+    if (validatedData.bankName !== undefined) updateData.bankName = validatedData.bankName
+    if (validatedData.bankAccount !== undefined) updateData.bankAccount = validatedData.bankAccount
+    if (validatedData.hourlyRate !== undefined) updateData.hourlyRate = validatedData.hourlyRate
+    if (validatedData.isActive !== undefined) updateData.isActive = validatedData.isActive
 
-    const { data: worker, error } = await supabaseAdmin
-      .from('workers')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) throw error
+    const worker = await prisma.worker.update({
+      where: { id },
+      data: updateData,
+    })
 
     return NextResponse.json(worker)
   } catch (error) {
@@ -116,12 +114,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const { error } = await supabaseAdmin
-      .from('workers')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    await prisma.worker.delete({
+      where: { id },
+    })
 
     return NextResponse.json(
       { message: '근로자가 성공적으로 삭제되었습니다.' },

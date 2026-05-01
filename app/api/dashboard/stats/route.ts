@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { startOfMonth, endOfMonth, startOfToday, subDays } from 'date-fns'
 
 export async function GET(request: Request) {
@@ -12,46 +12,60 @@ export async function GET(request: Request) {
     }
 
     const today = new Date()
-    const monthStart = startOfMonth(today).toISOString().split('T')[0]
-    const monthEnd = endOfMonth(today).toISOString().split('T')[0]
-    const todayStart = startOfToday().toISOString().split('T')[0]
+    const monthStart = startOfMonth(today)
+    const monthEnd = endOfMonth(today)
+    const todayStart = startOfToday()
 
     // 1. 총 근로자 수 (해당 현장 기준)
-    const { count: totalWorkers } = await supabaseAdmin
-      .from('workers')
-      .select('id', { count: 'exact', head: true })
-      .eq('site_id', siteId)
-      .eq('is_active', true)
+    const totalWorkers = await prisma.worker.count({
+      where: {
+        siteId,
+        isActive: true,
+      },
+    })
 
     // 2. 오늘 출근 인원
-    const { count: todayAttendance } = await supabaseAdmin
-      .from('attendance')
-      .select('id', { count: 'exact', head: true })
-      .eq('site_id', siteId)
-      .eq('date', todayStart)
+    const todayAttendance = await prisma.attendance.count({
+      where: {
+        siteId,
+        date: todayStart,
+      },
+    })
 
     // 3. 이번 달 누적 노무비 및 리스크 근로자 (6~7일 근무)
-    const { data: monthlyAttendance } = await supabaseAdmin
-      .from('attendance')
-      .select('*, workers(id, name, hourly_rate)')
-      .eq('site_id', siteId)
-      .gte('date', monthStart)
-      .lte('date', monthEnd)
+    const monthlyAttendance = await prisma.attendance.findMany({
+      where: {
+        siteId,
+        date: {
+          gte: monthStart,
+          lte: monthEnd,
+        },
+      },
+      include: {
+        worker: {
+          select: {
+            id: true,
+            name: true,
+            hourlyRate: true,
+          },
+        },
+      },
+    })
 
     const workerDaysMap: Record<string, { name: string, days: number }> = {}
 
-    const monthlyCost = (monthlyAttendance || []).reduce((sum, record) => {
+    const monthlyCost = monthlyAttendance.reduce((sum, record) => {
       // 공수 계산 및 비용 합산
-      const hours = Number(record.hours_worked)
-      const hourlyRate = record.workers?.hourly_rate || 0
+      const hours = Number(record.hoursWorked)
+      const hourlyRate = record.worker.hourlyRate
       const pay = hours * hourlyRate
       const overtimePay = hours > 8 ? (hours - 8) * hourlyRate * 0.5 : 0
 
       // 근무일수 집계 (주수휴당 제외 순수 출근일)
-      if (!workerDaysMap[record.worker_id]) {
-        workerDaysMap[record.worker_id] = { name: record.workers?.name || '', days: 0 }
+      if (!workerDaysMap[record.workerId]) {
+        workerDaysMap[record.workerId] = { name: record.worker.name, days: 0 }
       }
-      workerDaysMap[record.worker_id].days += 1
+      workerDaysMap[record.workerId].days += 1
 
       return sum + pay + overtimePay
     }, 0)
@@ -70,18 +84,28 @@ export async function GET(request: Request) {
       }
     })
 
-    const { data: recentAttendance } = await supabaseAdmin
-      .from('attendance')
-      .select('date, hours_worked, workers(hourly_rate)')
-      .eq('site_id', siteId)
-      .gte('date', subDays(today, 13).toISOString().split('T')[0])
+    const recentAttendance = await prisma.attendance.findMany({
+      where: {
+        siteId,
+        date: {
+          gte: subDays(today, 13),
+        },
+      },
+      include: {
+        worker: {
+          select: {
+            hourlyRate: true,
+          },
+        },
+      },
+    })
 
-    recentAttendance?.forEach(record => {
-      const dateStr = record.date
+    recentAttendance.forEach(record => {
+      const dateStr = record.date.toISOString().split('T')[0]
       const dayData = last14Days.find(d => d.date === dateStr)
       if (dayData) {
-        const hours = Number(record.hours_worked)
-        const hourlyRate = record.workers?.hourly_rate || 0
+        const hours = Number(record.hoursWorked)
+        const hourlyRate = record.worker.hourlyRate
         const pay = hours * hourlyRate
         const overtime = hours > 8 ? (hours - 8) * hourlyRate * 0.5 : 0
         dayData.cost += (pay + overtime)
@@ -89,8 +113,8 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json({
-      totalWorkers: totalWorkers || 0,
-      todayAttendance: todayAttendance || 0,
+      totalWorkers,
+      todayAttendance,
       monthlyCost,
       riskWorkers,
       chartData: last14Days

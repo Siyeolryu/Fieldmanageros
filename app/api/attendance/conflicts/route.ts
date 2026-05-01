@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 
 // GET /api/attendance/conflicts?siteId=xxx&startDate=2026-04-01&endDate=2026-04-30
 // 중복 또는 이상 출근 기록 감지
@@ -18,19 +18,25 @@ export async function GET(request: Request) {
     }
 
     // 출근 기록 조회
-    let query = supabaseAdmin
-      .from('attendance')
-      .select('*, workers(id, name)')
-      .eq('site_id', siteId)
-      .order('worker_id', { ascending: true })
-      .order('date', { ascending: true })
-
-    if (startDate) query = query.gte('date', startDate)
-    if (endDate) query = query.lte('date', endDate)
-
-    const { data: attendance, error } = await query
-
-    if (error) throw error
+    const attendance = await prisma.attendance.findMany({
+      where: {
+        siteId: siteId,
+        ...(startDate && { date: { gte: new Date(startDate) } }),
+        ...(endDate && { date: { lte: new Date(endDate) } }),
+      },
+      include: {
+        worker: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: [
+        { workerId: 'asc' },
+        { date: 'asc' },
+      ],
+    })
 
     const conflicts: {
       type: string
@@ -42,61 +48,59 @@ export async function GET(request: Request) {
     }[] = []
 
     // 이상 패턴 감지
-    attendance?.forEach((record) => {
+    attendance.forEach((record) => {
+      const hours = Number(record.hoursWorked)
+      const dateStr = record.date.toISOString().split('T')[0]
+
       // 1. 24시간 초과 근무
-      if (Number(record.hours_worked) > 24) {
+      if (hours > 24) {
         conflicts.push({
           type: 'excessive_hours',
-          workerId: record.worker_id,
-          workerName: record.workers?.name || '',
-          date: record.date,
-          hoursWorked: Number(record.hours_worked),
+          workerId: record.workerId,
+          workerName: record.worker.name,
+          date: dateStr,
+          hoursWorked: hours,
           reason: '24시간을 초과한 근무 시간',
         })
       }
 
       // 2. 0시간 근무
-      if (Number(record.hours_worked) === 0) {
+      if (hours === 0) {
         conflicts.push({
           type: 'zero_hours',
-          workerId: record.worker_id,
-          workerName: record.workers?.name || '',
-          date: record.date,
+          workerId: record.workerId,
+          workerName: record.worker.name,
+          date: dateStr,
           hoursWorked: 0,
           reason: '근무 시간이 0시간',
         })
       }
 
       // 3. 너무 짧은 근무 (2시간 미만)
-      if (Number(record.hours_worked) < 2 && Number(record.hours_worked) > 0) {
+      if (hours < 2 && hours > 0) {
         conflicts.push({
           type: 'short_hours',
-          workerId: record.worker_id,
-          workerName: record.workers?.name || '',
-          date: record.date,
-          hoursWorked: Number(record.hours_worked),
+          workerId: record.workerId,
+          workerName: record.worker.name,
+          date: dateStr,
+          hoursWorked: hours,
           reason: '2시간 미만의 짧은 근무',
         })
       }
     })
 
     // 주별 근무 시간 확인 (주 52시간 초과)
-    type AttendanceRecord = {
-      worker_id: string
-      date: string
-      hours_worked: number
-      workers: { name: string } | null
-    }
+    type AttendanceWithWorker = typeof attendance[0]
 
-    const weeklyHours = new Map<string, { total: number; records: AttendanceRecord[] }>()
+    const weeklyHours = new Map<string, { total: number; records: AttendanceWithWorker[] }>()
 
-    attendance?.forEach((record) => {
-      const weekKey = `${record.worker_id}-${getWeekOfYear(new Date(record.date))}`
+    attendance.forEach((record) => {
+      const weekKey = `${record.workerId}-${getWeekOfYear(record.date)}`
       if (!weeklyHours.has(weekKey)) {
         weeklyHours.set(weekKey, { total: 0, records: [] })
       }
       const week = weeklyHours.get(weekKey)!
-      week.total += Number(record.hours_worked)
+      week.total += Number(record.hoursWorked)
       week.records.push(record)
     })
 
@@ -105,9 +109,9 @@ export async function GET(request: Request) {
         const firstRecord = week.records[0]
         conflicts.push({
           type: 'weekly_overtime',
-          workerId: firstRecord.worker_id,
-          workerName: firstRecord.workers?.name || '',
-          date: firstRecord.date,
+          workerId: firstRecord.workerId,
+          workerName: firstRecord.worker.name,
+          date: firstRecord.date.toISOString().split('T')[0],
           hoursWorked: week.total,
           reason: `주 52시간을 초과한 근무 (총 ${Math.round(week.total * 10) / 10}시간)`,
         })

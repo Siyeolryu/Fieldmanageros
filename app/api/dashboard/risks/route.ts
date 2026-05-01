@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 // GET /api/dashboard/risks - 리스크 분석
@@ -18,91 +18,128 @@ export async function GET() {
     }
 
     // 사용자의 회사 조회
-    const { data: companies } = await supabaseAdmin
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
+    const companies = await prisma.company.findMany({
+      where: {
+        ownerId: user.id,
+      },
+      select: {
+        id: true,
+      },
+    })
 
-    const companyIds = companies?.map((c) => c.id) || []
+    const companyIds = companies.map((c) => c.id)
 
     if (companyIds.length === 0) {
       return NextResponse.json({ risks: [] })
     }
 
     // Get all sites
-    const { data: sites } = await supabaseAdmin
-      .from('sites')
-      .select('id, is_active, end_date')
-      .in('company_id', companyIds)
+    const sites = await prisma.site.findMany({
+      where: {
+        companyId: {
+          in: companyIds,
+        },
+      },
+      select: {
+        id: true,
+        isActive: true,
+        endDate: true,
+      },
+    })
 
-    const siteIds = sites?.map((s) => s.id) || []
+    const siteIds = sites.map((s) => s.id)
 
     if (siteIds.length === 0) {
       return NextResponse.json({ risks: [] })
     }
 
     const now = new Date()
-    const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).toISOString().split('T')[0]
-    const thirtyDaysLater = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30).toISOString().split('T')[0]
-    const today = now.toISOString().split('T')[0]
+    const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)
+    const thirtyDaysLater = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30)
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
     // 리스크 분석
     const [
-      unpaidPayrollsResult,
+      unpaidPayrolls,
       weeklyAttendanceData,
-      allActiveWorkersResult,
-      recentAttendanceWorkersData,
+      allActiveWorkers,
+      recentAttendanceWorkers,
     ] = await Promise.all([
       // 미지급 급여
-      supabaseAdmin
-        .from('payroll')
-        .select('id', { count: 'exact', head: true })
-        .in('site_id', siteIds)
-        .is('paid_at', null),
+      prisma.payroll.count({
+        where: {
+          siteId: {
+            in: siteIds,
+          },
+          paidAt: null,
+        },
+      }),
 
       // 최근 7일간 출근 기록 (주 52시간 초과 확인용)
-      supabaseAdmin
-        .from('attendance')
-        .select('worker_id, hours_worked')
-        .in('site_id', siteIds)
-        .gte('date', sevenDaysAgo)
-        .lt('date', today),
+      prisma.attendance.findMany({
+        where: {
+          siteId: {
+            in: siteIds,
+          },
+          date: {
+            gte: sevenDaysAgo,
+            lt: today,
+          },
+        },
+        select: {
+          workerId: true,
+          hoursWorked: true,
+        },
+      }),
 
       // 활성 근로자 전체
-      supabaseAdmin
-        .from('workers')
-        .select('id')
-        .in('site_id', siteIds)
-        .eq('is_active', true),
+      prisma.worker.findMany({
+        where: {
+          siteId: {
+            in: siteIds,
+          },
+          isActive: true,
+        },
+        select: {
+          id: true,
+        },
+      }),
 
       // 최근 7일간 출근 기록이 있는 근로자
-      supabaseAdmin
-        .from('attendance')
-        .select('worker_id')
-        .in('site_id', siteIds)
-        .gte('date', sevenDaysAgo),
+      prisma.attendance.findMany({
+        where: {
+          siteId: {
+            in: siteIds,
+          },
+          date: {
+            gte: sevenDaysAgo,
+          },
+        },
+        select: {
+          workerId: true,
+        },
+        distinct: ['workerId'],
+      }),
     ])
-
-    const unpaidPayrolls = unpaidPayrollsResult.count || 0
 
     // 주 52시간 초과 계산
     const workerHoursMap = new Map<string, number>()
-    weeklyAttendanceData.data?.forEach((a) => {
-      const current = workerHoursMap.get(a.worker_id) || 0
-      workerHoursMap.set(a.worker_id, current + (a.hours_worked || 0))
+    weeklyAttendanceData.forEach((a) => {
+      const current = workerHoursMap.get(a.workerId) || 0
+      workerHoursMap.set(a.workerId, current + Number(a.hoursWorked))
     })
     const excessiveWorkHours = Array.from(workerHoursMap.values()).filter((hours) => hours > 52)
 
     // 최근 7일간 출근 기록 없는 활성 근로자
-    const allActiveWorkerIds = new Set(allActiveWorkersResult.data?.map((w) => w.id) || [])
-    const recentAttendanceWorkerIds = new Set(recentAttendanceWorkersData.data?.map((a) => a.worker_id) || [])
+    const allActiveWorkerIds = new Set(allActiveWorkers.map((w) => w.id))
+    const recentAttendanceWorkerIds = new Set(recentAttendanceWorkers.map((a) => a.workerId))
     const missingAttendance = allActiveWorkerIds.size - recentAttendanceWorkerIds.size
 
     // 종료 예정 현장 (30일 이내)
-    const inactiveSites = sites?.filter((s) => {
-      if (!s.is_active || !s.end_date) return false
-      return s.end_date <= thirtyDaysLater && s.end_date >= today
-    }).length || 0
+    const inactiveSites = sites.filter((s) => {
+      if (!s.isActive || !s.endDate) return false
+      return s.endDate <= thirtyDaysLater && s.endDate >= today
+    }).length
 
     const risks = [
       {

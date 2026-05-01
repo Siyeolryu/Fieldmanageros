@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { z } from 'zod'
 
 // 출근 기록 등록 검증 스키마
@@ -21,28 +21,26 @@ export async function GET(request: Request) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
-    let query = supabaseAdmin
-      .from('attendance')
-      .select('*, workers(name)')
-      .order('date', { ascending: false })
+    const attendance = await prisma.attendance.findMany({
+      where: {
+        ...(siteId && { siteId }),
+        ...(workerId && { workerId }),
+        ...(startDate && { date: { gte: new Date(startDate) } }),
+        ...(endDate && { date: { lte: new Date(endDate) } }),
+      },
+      include: {
+        worker: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        date: 'desc',
+      },
+    })
 
-    if (siteId) query = query.eq('site_id', siteId)
-    if (workerId) query = query.eq('worker_id', workerId)
-    if (startDate) query = query.gte('date', startDate)
-    if (endDate) query = query.lte('date', endDate)
-
-    const { data: attendance, error } = await query
-
-    if (error) throw error
-
-    // workers 필드를 worker로 변환 (호환성 유지)
-    const formattedAttendance = attendance?.map(record => ({
-      ...record,
-      worker: record.workers,
-      workers: undefined,
-    }))
-
-    return NextResponse.json(formattedAttendance)
+    return NextResponse.json(attendance)
   } catch (error) {
     console.error('Error fetching attendance:', error)
     return NextResponse.json(
@@ -66,23 +64,30 @@ export async function POST(request: Request) {
     for (const record of records) {
       const validatedData = attendanceSchema.parse(record)
 
-      // Supabase upsert - unique constraint 기반 (worker_id, site_id, date)
-      const { data: attendance, error } = await supabaseAdmin
-        .from('attendance')
-        .upsert({
-          worker_id: validatedData.workerId,
-          site_id: validatedData.siteId,
-          date: validatedData.date,
-          hours_worked: validatedData.hoursWorked,
-          is_weekly_holiday: validatedData.isWeeklyHoliday,
+      // Prisma upsert - unique constraint 기반 (workerId, siteId, date)
+      const attendance = await prisma.attendance.upsert({
+        where: {
+          workerId_siteId_date: {
+            workerId: validatedData.workerId,
+            siteId: validatedData.siteId,
+            date: new Date(validatedData.date),
+          },
+        },
+        update: {
+          hoursWorked: validatedData.hoursWorked,
+          isWeeklyHoliday: validatedData.isWeeklyHoliday,
           notes: validatedData.notes || null,
-        }, {
-          onConflict: 'worker_id,site_id,date'
-        })
-        .select()
-        .single()
+        },
+        create: {
+          workerId: validatedData.workerId,
+          siteId: validatedData.siteId,
+          date: new Date(validatedData.date),
+          hoursWorked: validatedData.hoursWorked,
+          isWeeklyHoliday: validatedData.isWeeklyHoliday,
+          notes: validatedData.notes || null,
+        },
+      })
 
-      if (error) throw error
       results.push(attendance)
     }
 

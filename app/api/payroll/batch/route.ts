@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { z } from 'zod'
 
 // 일괄 처리 스키마
@@ -14,46 +14,51 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { payrollIds, action } = batchSchema.parse(body)
 
-    let error, count
+    let count = 0
 
     switch (action) {
       case 'approve':
         // 승인 처리 (커스텀 필드 추가 필요 시)
-        const approveResult = await supabaseAdmin
-          .from('payroll')
-          .update({
+        const approveResult = await prisma.payroll.updateMany({
+          where: {
+            id: {
+              in: payrollIds,
+            },
+          },
+          data: {
             // 승인 관련 필드 업데이트
-            // approved_at: new Date().toISOString(),
-          })
-          .in('id', payrollIds)
-
-        error = approveResult.error
+            // approvedAt: new Date(),
+          },
+        })
         count = approveResult.count
         break
 
       case 'pay':
         // 지급 처리
-        const payResult = await supabaseAdmin
-          .from('payroll')
-          .update({
-            paid_at: new Date().toISOString(),
-          })
-          .in('id', payrollIds)
-          .is('paid_at', null)
-
-        error = payResult.error
+        const payResult = await prisma.payroll.updateMany({
+          where: {
+            id: {
+              in: payrollIds,
+            },
+            paidAt: null,
+          },
+          data: {
+            paidAt: new Date(),
+          },
+        })
         count = payResult.count
         break
 
       case 'delete':
         // 삭제
-        const deleteResult = await supabaseAdmin
-          .from('payroll')
-          .delete()
-          .in('id', payrollIds)
-          .is('paid_at', null)
-
-        error = deleteResult.error
+        const deleteResult = await prisma.payroll.deleteMany({
+          where: {
+            id: {
+              in: payrollIds,
+            },
+            paidAt: null,
+          },
+        })
         count = deleteResult.count
         break
 
@@ -64,12 +69,10 @@ export async function POST(request: Request) {
         )
     }
 
-    if (error) throw error
-
     return NextResponse.json({
       success: true,
       action,
-      affected: count || 0,
+      affected: count,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

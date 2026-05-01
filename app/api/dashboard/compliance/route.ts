@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 // GET /api/dashboard/compliance - 법정 준수사항 체크
@@ -17,24 +17,24 @@ export async function GET() {
       )
     }
 
-    const { data: companies } = await supabaseAdmin
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
+    const companies = await prisma.company.findMany({
+      where: { ownerId: user.id },
+      select: { id: true },
+    })
 
-    const companyIds = companies?.map((c) => c.id) || []
+    const companyIds = companies.map((c) => c.id)
 
     if (companyIds.length === 0) {
       return NextResponse.json({ compliance: [] })
     }
 
     // Get all sites for these companies
-    const { data: sites } = await supabaseAdmin
-      .from('sites')
-      .select('id, is_active')
-      .in('company_id', companyIds)
+    const sites = await prisma.site.findMany({
+      where: { companyId: { in: companyIds } },
+      select: { id: true, isActive: true },
+    })
 
-    const siteIds = sites?.map((s) => s.id) || []
+    const siteIds = sites.map((s) => s.id)
 
     if (siteIds.length === 0) {
       return NextResponse.json({ compliance: [] })
@@ -44,51 +44,61 @@ export async function GET() {
 
     // 법정 준수사항 체크
     const [
-      workersWithoutBankInfoResult,
-      workersWithoutIdNumberResult,
-      activeSitesResult,
+      workersWithoutBankInfo,
+      workersWithoutIdNumber,
+      activeSitesCount,
       recentPayrollsData,
     ] = await Promise.all([
       // 계좌 정보 없는 근로자
-      supabaseAdmin
-        .from('workers')
-        .select('id', { count: 'exact', head: true })
-        .in('site_id', siteIds)
-        .eq('is_active', true)
-        .or('bank_name.is.null,bank_account.is.null'),
+      prisma.worker.count({
+        where: {
+          siteId: { in: siteIds },
+          isActive: true,
+          OR: [
+            { bankName: null },
+            { bankAccount: null },
+          ],
+        },
+      }),
 
       // 주민등록번호 없는 근로자
-      supabaseAdmin
-        .from('workers')
-        .select('id', { count: 'exact', head: true })
-        .in('site_id', siteIds)
-        .eq('is_active', true)
-        .is('id_number', null),
+      prisma.worker.count({
+        where: {
+          siteId: { in: siteIds },
+          isActive: true,
+          idNumber: null,
+        },
+      }),
 
       // 활성 현장 수
-      supabaseAdmin
-        .from('sites')
-        .select('id', { count: 'exact', head: true })
-        .in('company_id', companyIds)
-        .eq('is_active', true),
+      prisma.site.count({
+        where: {
+          companyId: { in: companyIds },
+          isActive: true,
+        },
+      }),
 
       // 최근 3개월 급여 지급 현황
-      supabaseAdmin
-        .from('payroll')
-        .select('year, month, paid_at')
-        .in('site_id', siteIds)
-        .gte('year', now.getFullYear())
-        .gte('month', now.getMonth() - 1),
+      prisma.payroll.findMany({
+        where: {
+          siteId: { in: siteIds },
+          year: { gte: now.getFullYear() },
+          month: { gte: now.getMonth() - 1 },
+        },
+        select: {
+          year: true,
+          month: true,
+          paidAt: true,
+        },
+      }),
     ])
 
-    const workersWithoutBankInfo = workersWithoutBankInfoResult.count || 0
-    const workersWithoutIdNumber = workersWithoutIdNumberResult.count || 0
-    const sitesWithoutInsurance = activeSitesResult.count || 0
+    const sitesWithoutInsurance = activeSitesCount
 
     // Group by year and month
     const payrollGroups = new Set()
-    recentPayrollsData.data?.forEach((p) => {
-      if (p.paid_at) {
+    recentPayrollsData.forEach((p) => {
+      if (p.paidAt) {
         payrollGroups.add(`${p.year}-${p.month}`)
       }
     })

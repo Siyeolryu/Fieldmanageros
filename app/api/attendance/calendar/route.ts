@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 
 // GET /api/attendance/calendar?siteId=xxx&year=2026&month=4 - 캘린더 뷰 데이터
 export async function GET(request: Request) {
@@ -16,30 +16,33 @@ export async function GET(request: Request) {
       )
     }
 
-    const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0]
-    const endDate = new Date(year, month, 1).toISOString().split('T')[0]
+    const startDate = new Date(year, month - 1, 1)
+    const endDate = new Date(year, month, 0, 23, 59, 59)
 
-    // 출근 기록 조회
-    const { data: attendance, error } = await supabaseAdmin
-      .from('attendance')
-      .select('*, workers(id, name)')
-      .eq('site_id', siteId)
-      .gte('date', startDate)
-      .lt('date', endDate)
-      .order('date', { ascending: true })
-
-    if (error) throw error
+    // 출근 기록 조회 with worker name
+    const attendance = await prisma.attendance.findMany({
+      where: {
+        siteId: siteId,
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        worker: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        date: 'asc',
+      },
+    })
 
     // 날짜별로 그룹화
-    type AttendanceRecord = {
-      id: string
-      date: string
-      worker_id: string
-      hours_worked: number
-      is_weekly_holiday: boolean
-      notes: string | null
-      workers: { name: string } | null
-    }
+    type AttendanceWithWorker = typeof attendance[0]
 
     const calendar: Record<
       string,
@@ -47,12 +50,12 @@ export async function GET(request: Request) {
         date: string
         totalWorkers: number
         totalHours: number
-        records: AttendanceRecord[]
+        records: AttendanceWithWorker[]
       }
     > = {}
 
-    attendance?.forEach((record) => {
-      const dateKey = record.date
+    attendance.forEach((record) => {
+      const dateKey = record.date.toISOString().split('T')[0]
 
       if (!calendar[dateKey]) {
         calendar[dateKey] = {
@@ -64,7 +67,7 @@ export async function GET(request: Request) {
       }
 
       calendar[dateKey].totalWorkers += 1
-      calendar[dateKey].totalHours += Number(record.hours_worked)
+      calendar[dateKey].totalHours += Number(record.hoursWorked)
       calendar[dateKey].records.push(record)
     })
 
@@ -76,10 +79,10 @@ export async function GET(request: Request) {
         totalHours: Math.round(day.totalHours * 10) / 10,
         records: day.records.map((r) => ({
           id: r.id,
-          workerId: r.worker_id,
-          workerName: r.workers?.name,
-          hoursWorked: Number(r.hours_worked),
-          isWeeklyHoliday: r.is_weekly_holiday,
+          workerId: r.workerId,
+          workerName: r.worker.name,
+          hoursWorked: Number(r.hoursWorked),
+          isWeeklyHoliday: r.isWeeklyHoliday,
           notes: r.notes,
         })),
       })),

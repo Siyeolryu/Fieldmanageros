@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 
 // PUT /api/payroll/[id]/pay - 급여 지급 처리
 export async function PUT(
@@ -9,20 +9,22 @@ export async function PUT(
   try {
     const { id } = await params
 
-    const { data: payroll, error: findError } = await supabaseAdmin
-      .from('payroll')
-      .select('id, paid_at')
-      .eq('id', id)
-      .single()
+    const payroll = await prisma.payroll.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        paidAt: true,
+      },
+    })
 
-    if (findError || !payroll) {
+    if (!payroll) {
       return NextResponse.json(
         { error: '급여 명세를 찾을 수 없습니다.' },
         { status: 404 }
       )
     }
 
-    if (payroll.paid_at) {
+    if (payroll.paidAt) {
       return NextResponse.json(
         { error: '이미 지급된 급여입니다.' },
         { status: 400 }
@@ -30,24 +32,30 @@ export async function PUT(
     }
 
     // 지급 처리
-    const { data: updated, error } = await supabaseAdmin
-      .from('payroll')
-      .update({
-        paid_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select('*, workers(id, name, bank_name, bank_account), sites(id, name)')
-      .single()
-
-    if (error) throw error
-
-    return NextResponse.json({
-      ...updated,
-      worker: updated.workers,
-      site: updated.sites,
-      workers: undefined,
-      sites: undefined,
+    const updated = await prisma.payroll.update({
+      where: { id },
+      data: {
+        paidAt: new Date(),
+      },
+      include: {
+        worker: {
+          select: {
+            id: true,
+            name: true,
+            bankName: true,
+            bankAccount: true,
+          },
+        },
+        site: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     })
+
+    return NextResponse.json(updated)
   } catch (error) {
     console.error('Error marking payroll as paid:', error)
     return NextResponse.json(

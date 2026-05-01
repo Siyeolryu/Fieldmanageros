@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import prisma from '@/lib/prisma'
 import { generatePayrollExcel } from '@/lib/excel/generator'
 
 // GET /api/excel/download/payroll?siteId=xxx&year=2026&month=4
@@ -28,12 +29,18 @@ export async function GET(request: Request) {
       )
     }
 
-    // 현장 정보 - RLS가 자동으로 소유권 검증
-    const { data: site } = await supabase
-      .from('sites')
-      .select('name')
-      .eq('id', siteId)
-      .single()
+    // 현장 정보 및 소유권 검증
+    const site = await prisma.site.findFirst({
+      where: {
+        id: siteId,
+        company: {
+          ownerId: user.id,
+        },
+      },
+      select: {
+        name: true,
+      },
+    })
 
     if (!site) {
       return NextResponse.json(
@@ -42,15 +49,24 @@ export async function GET(request: Request) {
       )
     }
 
-    // 급여 데이터 조회 - RLS가 자동으로 소유권 검증
-    const { data: payrolls, error: payrollError } = await supabase
-      .from('payroll')
-      .select('*, workers(name, hourly_rate, bank_name, bank_account)')
-      .eq('site_id', siteId)
-      .eq('year', year)
-      .eq('month', month)
-
-    if (payrollError) throw payrollError
+    // 급여 데이터 조회
+    const payrolls = await prisma.payroll.findMany({
+      where: {
+        siteId,
+        year,
+        month,
+      },
+      include: {
+        worker: {
+          select: {
+            name: true,
+            hourlyRate: true,
+            bankName: true,
+            bankAccount: true,
+          },
+        },
+      },
+    })
 
     if (!payrolls || payrolls.length === 0) {
       return NextResponse.json(
@@ -62,26 +78,25 @@ export async function GET(request: Request) {
     // 엑셀 생성
     const excelBuffer = generatePayrollExcel(
       payrolls.map((p) => ({
-        workerName: p.workers?.name || '근로자',
-        hourlyRate: p.workers?.hourly_rate || 0,
-        totalWorkDays: p.total_work_days || 0,
-        totalHours: Number(p.total_hours || 0),
-        basePay: p.base_pay || 0,
-        weeklyHolidayPay: p.weekly_holiday_pay || 0,
-        overtimePay: p.overtime_pay || 0,
-        totalPay: p.total_pay || 0,
-        healthInsurance: p.health_insurance || 0,
-        pensionInsurance: p.pension_insurance || 0,
-        employmentInsurance: p.employment_insurance || 0,
-        incomeTax: p.income_tax || 0,
-        totalDeduction: p.total_deduction || 0,
-        netPay: p.net_pay || 0,
-        bankName: p.workers?.bank_name || undefined,
-        bankAccount: p.workers?.bank_account || undefined,
+        workerName: p.worker.name,
+        hourlyRate: p.worker.hourlyRate,
+        totalWorkDays: p.totalWorkDays || 0,
+        totalHours: Number(p.totalHours || 0),
+        basePay: p.basePay || 0,
+        weeklyHolidayPay: p.weeklyHolidayPay || 0,
+        overtimePay: p.overtimePay || 0,
+        totalPay: p.totalPay || 0,
+        healthInsurance: p.healthInsurance || 0,
+        pensionInsurance: p.pensionInsurance || 0,
+        employmentInsurance: p.employmentInsurance || 0,
+        incomeTax: p.incomeTax || 0,
+        totalDeduction: p.totalDeduction || 0,
+        netPay: p.netPay || 0,
+        bankName: p.worker.bankName || undefined,
+        bankAccount: p.worker.bankAccount || undefined,
       })),
       year,
-      month,
-      site.name
+      month
     )
 
     // 파일명 생성

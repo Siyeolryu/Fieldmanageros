@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseServer'
+import prisma from '@/lib/prisma'
 import { z } from 'zod'
 
 // 수정 검증 스키마
@@ -76,20 +77,15 @@ export async function PATCH(
     const body = await request.json()
     const validatedData = updateAttendanceSchema.parse(body)
 
-    const updateData: Record<string, number | boolean | string | null> = {}
-    if (validatedData.hoursWorked !== undefined) updateData.hours_worked = validatedData.hoursWorked
-    if (validatedData.isWeeklyHoliday !== undefined) updateData.is_weekly_holiday = validatedData.isWeeklyHoliday
-    if (validatedData.notes !== undefined) updateData.notes = validatedData.notes
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: attendance, error } = await supabaseAdmin
-      .from('attendance')
-      .update(updateData as any)
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) throw error
+    // Update using Prisma
+    const attendance = await prisma.attendance.update({
+      where: { id },
+      data: {
+        ...(validatedData.hoursWorked !== undefined && { hoursWorked: validatedData.hoursWorked }),
+        ...(validatedData.isWeeklyHoliday !== undefined && { isWeeklyHoliday: validatedData.isWeeklyHoliday }),
+        ...(validatedData.notes !== undefined && { notes: validatedData.notes }),
+      },
+    })
 
     return NextResponse.json(attendance)
   } catch (error) {
