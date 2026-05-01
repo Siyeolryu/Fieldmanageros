@@ -10,6 +10,8 @@ interface ExcelUploadModalProps {
   onSuccess: () => void
   siteId: string
   type: 'attendance' | 'workers' | 'ledger'
+  year?: number
+  month?: number
 }
 
 interface UploadResult {
@@ -37,13 +39,48 @@ export default function ExcelUploadModal({
   onClose,
   onSuccess,
   siteId,
-  type
+  type,
+  year: propYear,
+  month: propMonth,
 }: ExcelUploadModalProps) {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [result, setResult] = useState<UploadResult | null>(null)
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 현재 연/월 (props 없으면 현재 날짜 사용)
+  const templateYear = propYear ?? new Date().getFullYear()
+  const templateMonth = propMonth ?? (new Date().getMonth() + 1)
+
+  // ledger 서식 API 다운로드
+  const handleTemplateDownload = async () => {
+    if (type !== 'ledger') return
+    setDownloading(true)
+    try {
+      const res = await fetch(
+        `/api/excel/template?type=ledger&year=${templateYear}&month=${templateMonth}`
+      )
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || '서식 다운로드 실패')
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `노임대장_업로드서식_${templateYear}년${templateMonth}월.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '서식 다운로드 중 오류가 발생했습니다.')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const typeLabels = {
     attendance: '출근 기록',
@@ -149,7 +186,7 @@ export default function ExcelUploadModal({
           </div>
         </div>
 
-        {/* 샘플 양식 다운로드 - 개선된 UI */}
+        {/* 서식 파일 다운로드 */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -160,19 +197,48 @@ export default function ExcelUploadModal({
               </div>
               <div>
                 <p className="text-sm font-bold text-gray-900">엑셀 양식이 필요하신가요?</p>
-                <p className="text-xs text-gray-600">샘플 파일을 다운로드하여 양식을 확인하세요</p>
+                {type === 'ledger' ? (
+                  <p className="text-xs text-gray-600">{templateYear}년 {templateMonth}월 날짜가 자동 설정된 서식을 받으세요</p>
+                ) : (
+                  <p className="text-xs text-gray-600">샘플 파일을 다운로드하여 양식을 확인하세요</p>
+                )}
               </div>
             </div>
-            <a
-              href={`/templates/${type === 'workers' ? 'workers-template.csv' : 'attendance-template.csv'}`}
-              download
-              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-blue-200 flex items-center gap-2 whitespace-nowrap"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              샘플 다운로드받기
-            </a>
+            {type === 'ledger' ? (
+              <button
+                onClick={handleTemplateDownload}
+                disabled={downloading}
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-blue-200 flex items-center gap-2 whitespace-nowrap"
+              >
+                {downloading ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    생성 중...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    서식 다운로드
+                  </>
+                )}
+              </button>
+            ) : (
+              <a
+                href={`/templates/${type === 'workers' ? 'workers-template.csv' : 'attendance-template.csv'}`}
+                download
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-blue-200 flex items-center gap-2 whitespace-nowrap"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                샘플 다운로드받기
+              </a>
+            )}
           </div>
         </div>
 
@@ -198,9 +264,11 @@ export default function ExcelUploadModal({
 
           {type === 'ledger' && (
             <ul className="list-disc list-inside space-y-1 text-xs text-blue-600">
-              <li>통합 노임대장 형식 (근로자 정보 + 일별 근무시간)</li>
-              <li>1~5열: 이름, 전화번호, 주민번호, 은행, 계좌, 시급</li>
-              <li>6열 이후: 날짜별 근무시간</li>
+              <li><span className="font-bold">위 서식 파일을 먼저 다운로드하세요</span> (날짜 자동 설정)</li>
+              <li>A열: 이름 · B열: 전화번호 · C열: 주민등록번호</li>
+              <li>D열: 은행명 · E열: 계좌번호 · F열: 시급(숫자)</li>
+              <li>G열 이후: 각 날짜의 근무시간 입력 (숫자, 예: 8, 8.5)</li>
+              <li>근무하지 않은 날은 빈칸으로 두세요</li>
             </ul>
           )}
         </div>

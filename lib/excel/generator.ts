@@ -287,3 +287,58 @@ export function generatePayrollLedgerExcel(
 
   return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
 }
+
+/**
+ * 노임대장 업로드용 빈 서식 파일 생성 (동적 - 연/월 기반)
+ * 파서 parsePayrollLedgerExcel 과 100% 호환되는 컬럼 구조
+ * 컬럼: 이름 | 전화번호 | 주민등록번호 | 은행명 | 계좌번호 | 시급 | 1일 ... N일
+ */
+export function generateLedgerTemplateExcel(year: number, month: number): Buffer {
+  const daysInMonth = new Date(year, month, 0).getDate()
+
+  // 헤더 행: 파서가 index 0~5를 근로자 정보, 6~ 을 날짜별 근무시간으로 읽음
+  // 날짜 헤더를 실제 Date 값으로 설정 (xlsx가 날짜 직렬로 변환 → 파서가 XLSX.SSF.parse_date_code로 파싱)
+  const dateHeader: (string | number | Date)[] = [
+    '이름', '전화번호', '주민등록번호', '은행명', '계좌번호', '시급',
+    ...Array.from({ length: daysInMonth }, (_, i) => new Date(year, month - 1, i + 1)),
+  ]
+
+  // 샘플 데이터 3행 (입력 예시 - 사용자가 내용을 지우고 실제 데이터 입력)
+  const sampleRows: (string | number)[][] = [
+    ['홍길동', '010-1234-5678', '900101-1000000', '국민은행', '123-456-789012', 25000, ...Array(daysInMonth).fill('')],
+    ['김철수', '010-2345-6789', '850515-1000000', '신한은행', '234-567-890123', 28000, ...Array(daysInMonth).fill('')],
+    ['이영희', '010-3456-7890', '920303-2000000', '우리은행', '345-678-901234', 26000, ...Array(daysInMonth).fill('')],
+  ]
+
+  const data: (string | number | Date)[][] = [dateHeader, ...sampleRows]
+
+  const worksheet = XLSX.utils.aoa_to_sheet(data, { cellDates: true })
+
+  // 날짜 열 서식: M/D 형태로 표시 (예: 5/1, 5/2)
+  for (let col = 6; col < 6 + daysInMonth; col++) {
+    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col })
+    if (worksheet[cellAddress]) {
+      worksheet[cellAddress].z = 'M/D'
+    }
+  }
+
+  // 열 너비 설정
+  const colWidths: { wch: number }[] = [
+    { wch: 10 }, // 이름
+    { wch: 14 }, // 전화번호
+    { wch: 16 }, // 주민등록번호
+    { wch: 10 }, // 은행명
+    { wch: 20 }, // 계좌번호
+    { wch: 8  }, // 시급
+    ...Array(daysInMonth).fill({ wch: 5 }), // 날짜별
+  ]
+  worksheet['!cols'] = colWidths
+
+  // 첫 행 고정 (헤더 고정)
+  worksheet['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activeCell: 'A2', sqref: 'A2' }
+
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, worksheet, `${year}년 ${month}월 노임대장`)
+
+  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
+}

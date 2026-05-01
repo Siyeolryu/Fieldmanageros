@@ -402,6 +402,8 @@ export default function PayrollPage() {
           onSuccess={handleExcelSuccess}
           siteId={selectedSite.id}
           type="ledger"
+          year={year}
+          month={month}
         />
       )}
     </div>
