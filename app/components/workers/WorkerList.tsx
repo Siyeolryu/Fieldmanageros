@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import Button from '@/app/components/ui/Button'
-import { Worker } from '@prisma/client'
+import type { Worker } from '@prisma/client'
 
 interface WorkerListProps {
   onEdit: (worker: Worker) => void

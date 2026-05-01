@@ -293,7 +293,7 @@ export function generatePayrollLedgerExcel(
  * 파서 parsePayrollLedgerExcel 과 100% 호환되는 컬럼 구조
  * 컬럼: 이름 | 전화번호 | 주민등록번호 | 은행명 | 계좌번호 | 시급 | 1일 ... N일
  */
-export function generateLedgerTemplateExcel(year: number, month: number): Buffer {
+export function generateLedgerTemplateExcel(year: number, month: number): Uint8Array {
   const daysInMonth = new Date(year, month, 0).getDate()
 
   // 헤더 행: 파서가 index 0~5를 근로자 정보, 6~ 을 날짜별 근무시간으로 읽음
@@ -340,5 +340,6 @@ export function generateLedgerTemplateExcel(year: number, month: number): Buffer
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, `${year}년 ${month}월 노임대장`)
 
-  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
+  const result = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' })
+  return new Uint8Array(result)
 }

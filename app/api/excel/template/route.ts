@@ -46,13 +46,13 @@ export async function GET(request: Request) {
       )
     }
 
-    // 서식 파일 동적 생성
+    // 서식 파일 동적 생성 (Uint8Array 반환)
     const excelBuffer = generateLedgerTemplateExcel(year, month)
 
     // 파일명
     const filename = `노임대장_업로드서식_${year}년${month}월.xlsx`
 
-    return new NextResponse(new Uint8Array(excelBuffer), {
+    return new NextResponse(excelBuffer, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,

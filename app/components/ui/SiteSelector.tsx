@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useAppStore } from '@/lib/store'
-import { Site } from '@prisma/client'
+import type { Site } from '@prisma/client'
 
 const SiteSelector: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([])
