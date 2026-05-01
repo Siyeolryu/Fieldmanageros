@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Worker } from '@prisma/client'
+import type { Worker } from '@prisma/client'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
 import Button from '@/app/components/ui/Button'

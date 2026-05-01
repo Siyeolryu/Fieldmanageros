@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Site } from '@prisma/client'
+import type { Site } from '@prisma/client'
 import Button from '../ui/Button'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'

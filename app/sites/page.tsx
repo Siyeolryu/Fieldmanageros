@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import SiteCard from '../components/sites/SiteCard'
 import Button from '../components/ui/Button'
-import { Site } from '@prisma/client'
+import type { Site } from '@prisma/client'
 
 type SiteWithRelations = Site & {
   company?: {

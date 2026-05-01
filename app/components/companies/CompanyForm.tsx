@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import Button from '@/app/components/ui/Button'
-import { Company } from '@prisma/client'
+import type { Company } from '@prisma/client'
 
 const companySchema = z.object({
   name: z.string().min(1, '회사명을 입력해주세요.'),

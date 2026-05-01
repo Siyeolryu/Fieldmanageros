@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Attendance, Worker, Site, Company } from '@prisma/client'
+import type { Attendance, Worker, Site, Company } from '@prisma/client'
 
 interface AuthState {
   user: {

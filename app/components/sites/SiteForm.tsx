@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import Button from '@/app/components/ui/Button'
 import Tooltip from '@/app/components/ui/Tooltip'
-import { Site, Company } from '@prisma/client'
+import type { Site, Company } from '@prisma/client'
 import Link from 'next/link'
 
 const siteSchema = z.object({
