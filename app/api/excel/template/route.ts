@@ -52,7 +52,7 @@ export async function GET(request: Request) {
     // 파일명
     const filename = `노임대장_업로드서식_${year}년${month}월.xlsx`
 
-    return new NextResponse(excelBuffer, {
+    return new NextResponse(excelBuffer as any, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
