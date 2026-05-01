@@ -5,18 +5,20 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import CalendarView from '@/app/components/calendar/CalendarView'
 import SiteSelector from '@/app/components/ui/SiteSelector'
-import { useAppStore, useAuthStore } from '@/lib/store'
+import { useAppStore, useAuthStore, useGuestStore } from '@/lib/store'
 import Link from 'next/link'
 import CostChart from '@/app/components/dashboard/CostChart'
 import Modal from '@/app/components/ui/Modal'
 import RiskRadar from '@/app/components/dashboard/RiskRadar'
 import CostSplitterModal from '@/app/components/dashboard/CostSplitterModal'
 import TaxNotification from '@/app/components/dashboard/TaxNotification'
+import GuestDataMigrationModal from '@/app/components/guest/GuestDataMigrationModal'
 
 export default function HomePage() {
   const router = useRouter()
   const { selectedSite } = useAppStore()
-  const { user, activeRole, setActiveRole } = useAuthStore()
+  const { user, activeRole, setActiveRole, isGuestMode } = useAuthStore()
+  const { companies, sites, workers, attendance } = useGuestStore()
 
   // Auth check - redirect to landing page if not authenticated
   useEffect(() => {
@@ -30,7 +32,7 @@ export default function HomePage() {
     todayAttendance: number
     monthlyCost: number
     riskWorkers: { name: string, days: number }[]
-    chartData: Array<{ date: string; amount: number }>
+    chartData: Array<{ formattedDate: string; cost: number }>
   }>({
     totalWorkers: 0,
     todayAttendance: 0,
@@ -43,6 +45,7 @@ export default function HomePage() {
   const [isSplitterOpen, setIsSplitterOpen] = useState(false)
   const [isAddAttendanceOpen, setIsAddAttendanceOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+  const [showGuestMigration, setShowGuestMigration] = useState(false)
 
   const fetchStats = async () => {
     if (!selectedSite) return
@@ -63,6 +66,22 @@ export default function HomePage() {
   useEffect(() => {
     fetchStats()
   }, [selectedSite])
+
+  // Detect guest data after login
+  useEffect(() => {
+    if (user && !isGuestMode) {
+      const hasGuestData = companies.length > 0 || sites.length > 0 ||
+                           workers.length > 0 || attendance.length > 0
+      if (hasGuestData) {
+        setShowGuestMigration(true)
+      }
+    }
+  }, [user, isGuestMode, companies, sites, workers, attendance])
+
+  const handleMigrationSuccess = () => {
+    // Refresh stats after successful migration
+    fetchStats()
+  }
 
   // Show loading while checking auth
   if (!user) {
@@ -405,6 +424,13 @@ export default function HomePage() {
           </div>
         </div>
       </Modal>
+
+      {/* 게스트 데이터 마이그레이션 모달 */}
+      <GuestDataMigrationModal
+        isOpen={showGuestMigration}
+        onClose={() => setShowGuestMigration(false)}
+        onSuccess={handleMigrationSuccess}
+      />
 
       {/* 하단 탭 바 (모바일) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/90 backdrop-blur-lg border-t border-gray-100 px-6 flex items-center justify-between z-40 pb-safe">
