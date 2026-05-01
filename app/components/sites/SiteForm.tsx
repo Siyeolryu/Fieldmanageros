@@ -23,9 +23,22 @@ const siteSchema = z.object({
 
 type SiteFormValues = z.infer<typeof siteSchema>
 
+// Allow both Date and string for date fields (supports serialized data)
+type SiteFormData = Partial<Omit<Site, 'createdAt' | 'updatedAt' | 'startDate' | 'endDate'> & {
+  createdAt: Date | string
+  updatedAt: Date | string
+  startDate: Date | string | null
+  endDate: Date | string | null
+}>
+
+type CompanyFormData = Partial<Omit<Company, 'createdAt' | 'updatedAt'> & {
+  createdAt: Date | string
+  updatedAt: Date | string
+}>
+
 interface SiteFormProps {
-  initialData?: Partial<Site>
-  companies: Company[]
+  initialData?: SiteFormData
+  companies: CompanyFormData[]
   isEdit?: boolean
   userProfile?: {
     user_type: string

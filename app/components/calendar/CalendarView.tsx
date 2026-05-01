@@ -223,7 +223,7 @@ const CalendarView: React.FC = () => {
                       size="sm"
                       className="h-8 min-h-0 text-xs"
                       onClick={() => {
-                        setSelectedAttendance(record)
+                        setSelectedAttendance(record as any)
                         setIsSheetOpen(false)
                         setIsDetailModalOpen(true)
                       }}
@@ -291,7 +291,7 @@ const CalendarView: React.FC = () => {
           title="일괄 출근 등록"
         >
           <BulkAttendanceForm
-            workers={workers}
+            workers={workers as any}
             date={selectedDate}
             siteId={selectedSite?.id || ''}
             currentUserId={currentUserId}
@@ -311,7 +311,7 @@ const CalendarView: React.FC = () => {
           title="개별 출근 등록"
         >
           <AttendanceForm
-            workers={workers}
+            workers={workers as any}
             date={selectedDate}
             onSuccess={() => {
               setIsIndividualModalOpen(false)
@@ -362,7 +362,7 @@ const CalendarView: React.FC = () => {
                   닫기
                 </Button>
                 <Button
-                  variant="destructive"
+                  variant="danger"
                   size="full"
                   onClick={async () => {
                     if (!confirm('이 출근 기록을 삭제하시겠습니까?')) return

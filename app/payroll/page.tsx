@@ -23,20 +23,28 @@ export default function PayrollPage() {
   };
 
   interface PayrollRecord {
+    id: string
     workerId: string
+    siteId: string
+    year: number
+    month: number
     worker?: {
       name: string
       idNumber: string
       hourlyRate: number
     }
+    totalWorkDays: number
     totalHours: number
     basePay: number
     overtimePay: number
     weeklyHolidayPay: number
     totalPay: number
+    healthInsurance: number
+    pensionInsurance: number
+    employmentInsurance: number
+    incomeTax: number
     totalDeduction: number
     netPay: number
-    totalWorkDays: number
   }
 
   const exportToExcel = (siteName: string, y: number, m: number, data: PayrollRecord[]) => {
@@ -47,15 +55,15 @@ export default function PayrollPage() {
       ['성명', '주민등록번호', '공수', '기본급', '연장수당', '주휴수당', '지급총액', '공제계', '차인지급액']
     ]
     data.forEach(p => wsData.push([
-      p.worker?.name, 
-      maskIdNumber(p.worker?.idNumber),
-      (Number(p.totalHours) / 8).toFixed(1), 
-      p.basePay.toLocaleString(), 
-      p.overtimePay.toLocaleString(), 
-      p.weeklyHolidayPay.toLocaleString(), 
-      p.totalPay.toLocaleString(), 
-      p.totalDeduction.toLocaleString(),
-      p.netPay.toLocaleString()
+      p.worker?.name || '-',
+      maskIdNumber(p.worker?.idNumber || null),
+      (Number(p.totalHours || 0) / 8).toFixed(1),
+      (p.basePay || 0).toLocaleString(),
+      (p.overtimePay || 0).toLocaleString(),
+      (p.weeklyHolidayPay || 0).toLocaleString(),
+      (p.totalPay || 0).toLocaleString(),
+      (p.totalDeduction || 0).toLocaleString(),
+      (p.netPay || 0).toLocaleString()
     ]))
     const ws = XLSX.utils.aoa_to_sheet(wsData)
     ws['!cols'] = [{ wch: 10 }, { wch: 18 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }]
@@ -282,8 +290,8 @@ export default function PayrollPage() {
                                 />
                             </td>
                             <td className="px-6 py-5">
-                                <p className="font-black text-gray-900">{p.worker.name}</p>
-                                <p className="text-[10px] text-gray-400 font-bold">{maskIdNumber(p.worker.idNumber)}</p>
+                                <p className="font-black text-gray-900">{p.worker?.name || '-'}</p>
+                                <p className="text-[10px] text-gray-400 font-bold">{maskIdNumber(p.worker?.idNumber || null)}</p>
                             </td>
                             <td className="px-6 py-5 text-center">
                                 <div className="flex items-center justify-center gap-2">
@@ -339,8 +347,8 @@ export default function PayrollPage() {
                   <p className="text-sm text-gray-400 font-bold">{selectedRecord.year}년 {selectedRecord.month}월분</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-black text-gray-900">{selectedRecord.worker.name}</p>
-                  <p className="text-xs text-gray-500 font-bold">{maskIdNumber(selectedRecord.worker.idNumber)}</p>
+                  <p className="text-lg font-black text-gray-900">{selectedRecord.worker?.name || '-'}</p>
+                  <p className="text-xs text-gray-500 font-bold">{maskIdNumber(selectedRecord.worker?.idNumber || null)}</p>
                 </div>
               </div>
 

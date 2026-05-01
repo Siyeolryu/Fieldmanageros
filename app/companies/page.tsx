@@ -8,11 +8,13 @@ import CompanyCard from '../components/companies/CompanyCard'
 interface Company {
   id: string
   name: string
-  business_number?: string
-  phone?: string
-  address?: string
-  created_at: string
-  _count: {
+  businessNumber?: string | null
+  phone?: string | null
+  address?: string | null
+  ownerId: string
+  createdAt: Date
+  updatedAt: Date
+  _count?: {
     sites: number
   }
 }
@@ -167,7 +169,7 @@ export default function CompaniesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           {companies.map(company => (
-            <CompanyCard key={company.id} company={company} />
+            <CompanyCard key={company.id} company={company as any} />
           ))}
         </div>
       )}

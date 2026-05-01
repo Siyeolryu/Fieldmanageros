@@ -3,22 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import Button from '@/app/components/ui/Button'
-
-interface Worker {
-  id: string
-  site_id: string
-  name: string
-  phone?: string | null
-  id_number?: string | null
-  bank_name?: string | null
-  bank_account?: string | null
-  hourly_rate: number
-  profile_id?: string | null  // Phase 2: 프로필 연결
-  is_owner: boolean           // Phase 2: 현장 소유자 여부
-  is_active: boolean
-  created_at?: string
-  updated_at?: string
-}
+import { Worker } from '@prisma/client'
 
 interface WorkerListProps {
   onEdit: (worker: Worker) => void
@@ -129,8 +114,8 @@ const WorkerList: React.FC<WorkerListProps> = ({ onEdit }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {workers.map((worker) => {
             // Phase 5: 본인 여부 확인
-            const isMyself = worker.profile_id === currentUserId
-            const isOwner = worker.is_owner
+            const isMyself = worker.profileId === currentUserId
+            const isOwner = worker.isOwner
 
             return (
               <div
@@ -138,7 +123,7 @@ const WorkerList: React.FC<WorkerListProps> = ({ onEdit }) => {
                 className={`p-5 rounded-3xl border-2 transition-all ${
                   isMyself
                     ? 'bg-sky-50/50 border-sky-300'
-                    : worker.is_active
+                    : worker.isActive
                       ? 'bg-white border-gray-100'
                       : 'bg-white border-gray-200 opacity-60'
                 }`}
@@ -177,11 +162,11 @@ const WorkerList: React.FC<WorkerListProps> = ({ onEdit }) => {
                 <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-50">
                   <div>
                     <p className="text-[10px] font-bold text-gray-400 uppercase">시급</p>
-                    <p className="font-bold text-gray-900 text-sm">{worker.hourly_rate.toLocaleString()}원</p>
+                    <p className="font-bold text-gray-900 text-sm">{worker.hourlyRate.toLocaleString()}원</p>
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-gray-400 uppercase">은행</p>
-                    <p className="font-bold text-gray-900 text-sm truncate">{worker.bank_name || '-'} {worker.bank_account || ''}</p>
+                    <p className="font-bold text-gray-900 text-sm truncate">{worker.bankName || '-'} {worker.bankAccount || ''}</p>
                   </div>
                 </div>
               </div>

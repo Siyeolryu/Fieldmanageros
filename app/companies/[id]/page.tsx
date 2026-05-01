@@ -106,7 +106,7 @@ export default async function EditCompanyPage({
         <div className="space-y-8">
           <h3 className="text-2xl font-bold text-gray-900 ml-2">회사 기본 정보</h3>
           <CompanyForm
-            initialData={serializedCompany}
+            initialData={serializedCompany as any}
             ownerId={company.ownerId}
             isEdit={true}
           />
@@ -134,7 +134,7 @@ export default async function EditCompanyPage({
               {sitesWithStats.map(site => (
                 <SiteCard
                   key={site.id}
-                  site={site}
+                  site={site as any}
                   monthlyLaborCost={site.monthlyLaborCost}
                   currentMonthWorkers={site.currentMonthWorkers}
                 />

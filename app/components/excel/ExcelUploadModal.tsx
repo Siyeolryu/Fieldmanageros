@@ -219,18 +219,18 @@ export default function ExcelUploadModal({
 
             {result.type === 'ledger' ? (
               <div className="space-y-2 text-sm text-green-600">
-                <p>근로자: {result.workers.saved}/{result.workers.total}명 저장</p>
-                <p>출근 기록: {result.attendance.saved}/{result.attendance.total}건 저장</p>
-                {(result.workers.failed > 0 || result.attendance.failed > 0) && (
+                <p>근로자: {result.workers?.saved}/{result.workers?.total}명 저장</p>
+                <p>출근 기록: {result.attendance?.saved}/{result.attendance?.total}건 저장</p>
+                {((result.workers?.failed || 0) > 0 || (result.attendance?.failed || 0) > 0) && (
                   <p className="text-red-600">
-                    실패: 근로자 {result.workers.failed}명, 출근 {result.attendance.failed}건
+                    실패: 근로자 {result.workers?.failed}명, 출근 {result.attendance?.failed}건
                   </p>
                 )}
               </div>
             ) : (
               <div className="text-sm text-green-600">
                 <p>{result.saved}/{result.total}건 저장 완료</p>
-                {result.failed > 0 && (
+                {(result.failed || 0) > 0 && (
                   <p className="text-red-600">실패: {result.failed}건</p>
                 )}
               </div>

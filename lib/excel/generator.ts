@@ -146,7 +146,7 @@ export function generateAttendanceExcel(
 
   const dates = Array.from(dateMap.keys()).sort()
 
-  const data = [
+  const data: (string | number)[][] = [
     ['이름', ...dates, '총 근무일', '총 근무시간'],
   ]
 
@@ -163,7 +163,7 @@ export function generateAttendanceExcel(
 
   // 각 근로자별 행 생성
   workerMap.forEach((dateHours, workerName) => {
-    const row = [workerName]
+    const row: (string | number)[] = [workerName]
 
     let totalDays = 0
     let totalHours = 0
@@ -232,11 +232,11 @@ export function generatePayrollLedgerExcel(
     '합계',
   ]
 
-  const data = [header]
+  const data: (string | number)[][] = [header]
 
   // 각 근로자별 데이터
   workers.forEach((worker) => {
-    const row = [
+    const row: (string | number)[] = [
       worker.name,
       worker.phone || '',
       worker.idNumber || '',

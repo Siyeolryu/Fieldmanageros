@@ -39,7 +39,8 @@ export default function LandingPage() {
     try {
       const supabase = createSupabaseClient()
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider as 'kakao' | 'naver',
+        // @ts-ignore - Supabase doesn't support naver provider type
+        provider: provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },

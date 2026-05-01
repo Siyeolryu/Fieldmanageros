@@ -42,7 +42,7 @@ export function parseAttendanceExcel(buffer: Buffer): ParsedAttendanceRow[] {
     try {
       const workerName = String(row[0] || '').trim()
       const dateValue = row[1]
-      const hoursWorked = parseFloat(row[2] || '0')
+      const hoursWorked = parseFloat(String(row[2] || '0'))
       const isWeeklyHoliday = row[3] === 'O' || row[3] === '○' || row[3] === 'Y' || row[3] === true
       const notes = row[4] ? String(row[4]).trim() : undefined
 
@@ -50,8 +50,8 @@ export function parseAttendanceExcel(buffer: Buffer): ParsedAttendanceRow[] {
       let date: Date
       if (typeof dateValue === 'number') {
         // Excel 날짜 형식 (1900년 1월 1일부터의 일수)
-        date = XLSX.SSF.parse_date_code(dateValue)
-        date = new Date(date.y, date.m - 1, date.d)
+        const parsedDate = XLSX.SSF.parse_date_code(dateValue)
+        date = new Date(parsedDate.y, parsedDate.m - 1, parsedDate.d)
       } else if (typeof dateValue === 'string') {
         // 문자열 날짜 파싱
         date = new Date(dateValue)
@@ -105,7 +105,7 @@ export function parseWorkersExcel(buffer: Buffer): ParsedWorkerRow[] {
       const idNumber = row[2] ? String(row[2]).trim() : undefined
       const bankName = row[3] ? String(row[3]).trim() : undefined
       const bankAccount = row[4] ? String(row[4]).trim() : undefined
-      const hourlyRate = parseFloat(row[5] || '0')
+      const hourlyRate = parseFloat(String(row[5] || '0'))
 
       if (name && hourlyRate > 0) {
         parsed.push({
@@ -166,7 +166,7 @@ export function parsePayrollLedgerExcel(buffer: Buffer): {
       const idNumber = row[2] ? String(row[2]).trim() : undefined
       const bankName = row[3] ? String(row[3]).trim() : undefined
       const bankAccount = row[4] ? String(row[4]).trim() : undefined
-      const hourlyRate = parseFloat(row[5] || '0')
+      const hourlyRate = parseFloat(String(row[5] || '0'))
 
       if (name && hourlyRate > 0) {
         workers.push({
@@ -180,7 +180,7 @@ export function parsePayrollLedgerExcel(buffer: Buffer): {
 
         // 날짜별 출근 데이터 파싱
         dateColumns.forEach((colIndex) => {
-          const hoursWorked = parseFloat(row[colIndex] || '0')
+          const hoursWorked = parseFloat(String(row[colIndex] || '0'))
           if (hoursWorked > 0) {
             const dateHeader = headerRow[colIndex]
             let date: Date
@@ -189,7 +189,7 @@ export function parsePayrollLedgerExcel(buffer: Buffer): {
               const parsed = XLSX.SSF.parse_date_code(dateHeader)
               date = new Date(parsed.y, parsed.m - 1, parsed.d)
             } else {
-              date = new Date(dateHeader)
+              date = new Date(String(dateHeader))
             }
 
             if (!isNaN(date.getTime())) {

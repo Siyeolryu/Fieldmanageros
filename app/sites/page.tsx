@@ -5,10 +5,21 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import SiteCard from '../components/sites/SiteCard'
 import Button from '../components/ui/Button'
+import { Site } from '@prisma/client'
+
+type SiteWithRelations = Site & {
+  company?: {
+    name: string
+  }
+  _count?: {
+    workers: number
+    attendance: number
+  }
+}
 
 export default function SitesPage() {
   const router = useRouter()
-  const [sites, setSites] = useState([])
+  const [sites, setSites] = useState<SiteWithRelations[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -153,7 +164,7 @@ export default function SitesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          {sites.map((site: { id: string }) => (
+          {sites.map((site) => (
             <SiteCard key={site.id} site={site} />
           ))}
         </div>

@@ -9,20 +9,7 @@ import WorkerList from '@/app/components/workers/WorkerList'
 import WorkerForm from '@/app/components/workers/WorkerForm'
 import ExcelUploadModal from '@/app/components/excel/ExcelUploadModal'
 import Link from 'next/link'
-
-interface Worker {
-  id: string
-  site_id: string
-  name: string
-  phone?: string | null
-  id_number?: string | null
-  bank_name?: string | null
-  bank_account?: string | null
-  hourly_rate: number
-  is_active: boolean
-  created_at?: string
-  updated_at?: string
-}
+import { Worker } from '@prisma/client'
 
 export default function WorkersPage() {
   const { selectedSite } = useAppStore()

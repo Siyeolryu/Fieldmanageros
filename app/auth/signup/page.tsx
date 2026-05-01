@@ -81,7 +81,7 @@ export default function SignupPage() {
     try {
       const supabase = createSupabaseClient()
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider as 'kakao' | 'naver',
+        provider: provider as any,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },

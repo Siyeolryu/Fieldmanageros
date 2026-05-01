@@ -12,7 +12,12 @@ export default function ProfilePage() {
   const { setUser, activeRole, setActiveRole } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [user, setUserState] = useState<{ id: string; email: string } | null>(null)
+  const [user, setUserState] = useState<{
+    id: string
+    email: string
+    created_at?: string
+    app_metadata?: { provider?: string }
+  } | null>(null)
   const [fullName, setFullName] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [userType, setUserType] = useState<'manager' | 'both' | 'worker'>('manager')
@@ -35,7 +40,7 @@ export default function ProfilePage() {
         return
       }
 
-      setUserState(authUser)
+      setUserState(authUser as any)
 
       // 프로필 정보 로드
       const { data: profile } = await supabase
@@ -74,6 +79,8 @@ export default function ProfilePage() {
       const supabase = createSupabaseClient()
 
       // 프로필 업데이트
+      if (!user) return
+
       const { error: updateError } = await supabase
         .from('profiles')
         .upsert({
@@ -81,7 +88,7 @@ export default function ProfilePage() {
           full_name: fullName,
           company_name: companyName,
           user_type: userType,
-          email: user.email,
+          email: user.email || '',
           updated_at: new Date().toISOString(),
         })
 
@@ -110,6 +117,8 @@ export default function ProfilePage() {
   }
 
   const handleChangePassword = async () => {
+    if (!user) return
+
     try {
       const supabase = createSupabaseClient()
       const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
