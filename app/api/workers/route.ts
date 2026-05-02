@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import prisma from '@/lib/prisma'
 import { z } from 'zod'
 
 // 근로자 등록 검증 스키마
@@ -31,19 +32,29 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const siteId = searchParams.get('siteId')
 
-    // RLS가 자동으로 현재 사용자의 근로자만 필터링
-    let query = supabase
-      .from('workers')
-      .select('*, sites(name)')
-      .order('name', { ascending: true })
-
-    if (siteId) {
-      query = query.eq('site_id', siteId)
-    }
-
-    const { data: workers, error } = await query
-
-    if (error) throw error
+    // Prisma를 사용하여 근로자 조회 (RLS 대신 쿼리 레벨에서 권한 검증)
+    const workers = await prisma.worker.findMany({
+      where: siteId ? {
+        siteId,
+        site: {
+          company: {
+            ownerId: user.id // 현재 사용자가 소유한 회사의 현장만
+          }
+        }
+      } : {
+        site: {
+          company: {
+            ownerId: user.id
+          }
+        }
+      },
+      include: {
+        site: {
+          select: { name: true }
+        }
+      },
+      orderBy: { name: 'asc' }
+    })
 
     return NextResponse.json(workers)
   } catch (error) {
@@ -72,23 +83,41 @@ export async function POST(request: Request) {
     const body = await request.json()
     const validatedData = workerSchema.parse(body)
 
-    // RLS 정책이 자동으로 현장 소유권을 검증
-    const { data: worker, error } = await supabase
-      .from('workers')
-      .insert({
-        site_id: validatedData.siteId,
-        name: validatedData.name,
-        phone: validatedData.phone || null,
-        id_number: validatedData.idNumber || null,
-        bank_name: validatedData.bankName || null,
-        bank_account: validatedData.bankAccount || null,
-        hourly_rate: validatedData.hourlyRate,
-        is_active: validatedData.isActive,
-      })
-      .select()
-      .single()
+    // 현장 소유권 검증
+    const site = await prisma.site.findFirst({
+      where: {
+        id: validatedData.siteId,
+        company: {
+          ownerId: user.id
+        }
+      }
+    })
 
-    if (error) throw error
+    if (!site) {
+      return NextResponse.json(
+        { error: '현장에 대한 권한이 없습니다.' },
+        { status: 403 }
+      )
+    }
+
+    // Prisma를 사용하여 근로자 생성
+    const worker = await prisma.worker.create({
+      data: {
+        siteId: validatedData.siteId,
+        name: validatedData.name,
+        phone: validatedData.phone,
+        idNumber: validatedData.idNumber,
+        bankName: validatedData.bankName,
+        bankAccount: validatedData.bankAccount,
+        hourlyRate: validatedData.hourlyRate,
+        isActive: validatedData.isActive,
+      },
+      include: {
+        site: {
+          select: { name: true }
+        }
+      }
+    })
 
     return NextResponse.json(worker, { status: 201 })
   } catch (error) {

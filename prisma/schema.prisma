@@ -55,6 +55,7 @@ model Company {
   owner Profile @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   sites Site[]
 
+  @@index([ownerId])
   @@map("companies")
 }
 
@@ -79,6 +80,8 @@ model Site {
   attendance Attendance[]
   payroll    Payroll[]
 
+  @@index([companyId, isActive])
+  @@index([endDate, isActive])
   @@map("sites")
 }
 
@@ -107,6 +110,9 @@ model Worker {
   attendance Attendance[]
   payroll    Payroll[]
 
+  @@index([siteId, isActive])
+  @@index([siteId])
+  @@index([profileId])
   @@map("workers")
 }
 
@@ -131,6 +137,9 @@ model Attendance {
   correctionRequests CorrectionRequest[]
 
   @@unique([workerId, siteId, date])
+  @@index([siteId, date])
+  @@index([workerId, date])
+  @@index([date])
   @@map("attendance")
 }
 
@@ -165,6 +174,9 @@ model Payroll {
   site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@unique([workerId, siteId, year, month])
+  @@index([siteId, year, month])
+  @@index([workerId, year, month])
+  @@index([paidAt])
   @@map("payroll")
 }
 

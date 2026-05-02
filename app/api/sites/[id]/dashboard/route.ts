@@ -31,10 +31,10 @@ export async function GET(
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
 
-    // 대시보드 데이터 수집
+    // 대시보드 데이터 수집 (최적화: N+1 쿼리 제거)
     const [
       recentAttendance,
-      topWorkers,
+      thisMonthAttendance,
       thisMonthCosts,
       lastMonthCosts,
       upcomingPayrolls,
@@ -54,9 +54,8 @@ export async function GET(
         take: 10,
       }),
 
-      // 이번 달 근무 시간 상위 근로자
-      prisma.attendance.groupBy({
-        by: ['workerId'],
+      // 이번 달 출근 기록 (worker 정보 포함 - N+1 쿼리 방지)
+      prisma.attendance.findMany({
         where: {
           siteId: id,
           date: {
@@ -64,15 +63,15 @@ export async function GET(
             lt: nextMonth,
           },
         },
-        _sum: {
-          hoursWorked: true,
-        },
-        orderBy: {
-          _sum: {
-            hoursWorked: 'desc',
+        include: {
+          worker: {
+            select: {
+              id: true,
+              name: true,
+              hourlyRate: true,
+            },
           },
         },
-        take: 5,
       }),
 
       // 이번 달 비용
@@ -120,31 +119,40 @@ export async function GET(
       }),
     ])
 
-    // 상위 근로자 정보 가져오기
-    const workerIds = topWorkers.map((w) => w.workerId)
-    const workers = await prisma.worker.findMany({
-      where: {
-        id: { in: workerIds },
-      },
-      select: {
-        id: true,
-        name: true,
-        hourlyRate: true,
-      },
-    })
+    // 메모리에서 그룹화하여 상위 근로자 계산 (단일 쿼리 최적화)
+    const workerHoursMap = new Map<string, {
+      workerId: string
+      workerName: string
+      hourlyRate: number
+      totalHours: number
+    }>()
 
-    const topWorkersWithInfo = topWorkers.map((tw) => {
-      const worker = workers.find((w) => w.id === tw.workerId)
-      return {
-        workerId: tw.workerId,
-        workerName: worker?.name || '알 수 없음',
-        hourlyRate: worker?.hourlyRate || 0,
-        totalHours: Number(tw._sum.hoursWorked || 0),
-        estimatedPay: Math.round(
-          Number(tw._sum.hoursWorked || 0) * (worker?.hourlyRate || 0)
-        ),
+    thisMonthAttendance.forEach((attendance) => {
+      const existing = workerHoursMap.get(attendance.workerId)
+      const hours = Number(attendance.hoursWorked)
+
+      if (existing) {
+        existing.totalHours += hours
+      } else {
+        workerHoursMap.set(attendance.workerId, {
+          workerId: attendance.workerId,
+          workerName: attendance.worker.name,
+          hourlyRate: attendance.worker.hourlyRate,
+          totalHours: hours,
+        })
       }
     })
+
+    const topWorkersWithInfo = Array.from(workerHoursMap.values())
+      .sort((a, b) => b.totalHours - a.totalHours)
+      .slice(0, 5)
+      .map((worker) => ({
+        workerId: worker.workerId,
+        workerName: worker.workerName,
+        hourlyRate: worker.hourlyRate,
+        totalHours: worker.totalHours,
+        estimatedPay: Math.round(worker.totalHours * worker.hourlyRate),
+      }))
 
     const dashboard = {
       siteId: id,

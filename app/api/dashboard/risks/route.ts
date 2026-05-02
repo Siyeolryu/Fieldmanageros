@@ -58,12 +58,11 @@ export async function GET() {
     const thirtyDaysLater = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30)
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-    // 리스크 분석
+    // 리스크 분석 (최적화: 중복 쿼리 제거)
     const [
       unpaidPayrolls,
-      weeklyAttendanceData,
+      recentAttendance,
       allActiveWorkers,
-      recentAttendanceWorkers,
     ] = await Promise.all([
       // 미지급 급여
       prisma.payroll.count({
@@ -75,7 +74,7 @@ export async function GET() {
         },
       }),
 
-      // 최근 7일간 출근 기록 (주 52시간 초과 확인용)
+      // 최근 7일간 출근 기록 (한 번만 조회)
       prisma.attendance.findMany({
         where: {
           siteId: {
@@ -83,7 +82,6 @@ export async function GET() {
           },
           date: {
             gte: sevenDaysAgo,
-            lt: today,
           },
         },
         select: {
@@ -104,35 +102,25 @@ export async function GET() {
           id: true,
         },
       }),
-
-      // 최근 7일간 출근 기록이 있는 근로자
-      prisma.attendance.findMany({
-        where: {
-          siteId: {
-            in: siteIds,
-          },
-          date: {
-            gte: sevenDaysAgo,
-          },
-        },
-        select: {
-          workerId: true,
-        },
-        distinct: ['workerId'],
-      }),
     ])
 
-    // 주 52시간 초과 계산
+    // 메모리에서 처리: 주 52시간 초과 및 출근 기록 분석
     const workerHoursMap = new Map<string, number>()
-    weeklyAttendanceData.forEach((a) => {
+    const recentAttendanceWorkerIds = new Set<string>()
+
+    recentAttendance.forEach((a) => {
+      // 주 52시간 초과 체크용
       const current = workerHoursMap.get(a.workerId) || 0
       workerHoursMap.set(a.workerId, current + Number(a.hoursWorked))
+
+      // 출근 기록 있는 근로자 추적
+      recentAttendanceWorkerIds.add(a.workerId)
     })
+
     const excessiveWorkHours = Array.from(workerHoursMap.values()).filter((hours) => hours > 52)
 
     // 최근 7일간 출근 기록 없는 활성 근로자
     const allActiveWorkerIds = new Set(allActiveWorkers.map((w) => w.id))
-    const recentAttendanceWorkerIds = new Set(recentAttendanceWorkers.map((a) => a.workerId))
     const missingAttendance = allActiveWorkerIds.size - recentAttendanceWorkerIds.size
 
     // 종료 예정 현장 (30일 이내)

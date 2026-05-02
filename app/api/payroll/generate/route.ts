@@ -35,13 +35,40 @@ export async function POST(request: Request) {
     const startDate = new Date(year, month - 1, 1)
     const endDate = new Date(year, month, 1)
 
-    // 근로자 목록 가져오기
-    const workers = await prisma.worker.findMany({
-      where: {
-        siteId,
-        ...(workerIds && workerIds.length > 0 ? { id: { in: workerIds } } : {}),
-      },
-    })
+    // 배치 처리 최적화: 모든 데이터를 한 번에 조회
+    const [workers, allAttendance, existingPayrolls] = await Promise.all([
+      // 근로자 목록
+      prisma.worker.findMany({
+        where: {
+          siteId,
+          ...(workerIds && workerIds.length > 0 ? { id: { in: workerIds } } : {}),
+        },
+      }),
+      // 모든 출근 기록 (한 번에 조회)
+      prisma.attendance.findMany({
+        where: {
+          siteId,
+          date: {
+            gte: startDate,
+            lt: endDate,
+          },
+          ...(workerIds && workerIds.length > 0 ? { workerId: { in: workerIds } } : {}),
+        },
+        orderBy: {
+          date: 'asc',
+        },
+      }),
+      // 기존 급여 기록 (한 번에 조회)
+      prisma.payroll.findMany({
+        where: {
+          siteId,
+          year,
+          month,
+          ...(workerIds && workerIds.length > 0 ? { workerId: { in: workerIds } } : {}),
+        },
+        select: { id: true, workerId: true },
+      }),
+    ])
 
     if (!workers || workers.length === 0) {
       return NextResponse.json(
@@ -50,28 +77,52 @@ export async function POST(request: Request) {
       )
     }
 
-    const results = []
-    const errors = []
+    // 메모리에서 worker별로 attendance 그룹화
+    const attendanceByWorker = new Map<string, typeof allAttendance>()
+    allAttendance.forEach((att) => {
+      if (!attendanceByWorker.has(att.workerId)) {
+        attendanceByWorker.set(att.workerId, [])
+      }
+      attendanceByWorker.get(att.workerId)!.push(att)
+    })
 
+    // 기존 급여를 Map으로 변환
+    const existingPayrollMap = new Map(
+      existingPayrolls.map((p) => [p.workerId, p.id])
+    )
+
+    const results: Array<{
+      payrollId: string
+      workerId: string
+      workerName: string
+      totalPay: number | null
+      netPay: number | null
+      status: 'created' | 'updated'
+    }> = []
+    const errors: Array<{
+      workerId: string
+      workerName: string
+      error: string
+    }> = []
+    const payrollsToCreate: Array<{
+      data: any
+      workerId: string
+      workerName: string
+    }> = []
+    const payrollsToUpdate: Array<{
+      id: string
+      data: any
+      workerId: string
+      workerName: string
+    }> = []
+
+    // 각 worker의 급여 계산 (DB 쿼리 없이 메모리에서만 처리)
     for (const worker of workers) {
       try {
-        // 해당 근로자의 출근 기록 가져오기
-        const attendance = await prisma.attendance.findMany({
-          where: {
-            workerId: worker.id,
-            siteId,
-            date: {
-              gte: startDate,
-              lt: endDate,
-            },
-          },
-          orderBy: {
-            date: 'asc',
-          },
-        })
+        const attendance = attendanceByWorker.get(worker.id) || []
 
         // 출근 기록이 없으면 건너뛰기
-        if (!attendance || attendance.length === 0) {
+        if (attendance.length === 0) {
           errors.push({
             workerId: worker.id,
             workerName: worker.name,
@@ -96,19 +147,6 @@ export async function POST(request: Request) {
           month
         )
 
-        // 기존 급여 확인 (이미 생성된 경우 업데이트)
-        const existingPayroll = await prisma.payroll.findUnique({
-          where: {
-            workerId_siteId_year_month: {
-              workerId: worker.id,
-              siteId,
-              year,
-              month,
-            },
-          },
-          select: { id: true },
-        })
-
         const payrollPayload = {
           workerId: worker.id,
           siteId,
@@ -128,28 +166,21 @@ export async function POST(request: Request) {
           netPay: payrollData.netPay,
         }
 
-        let payroll
-        if (existingPayroll) {
-          // 업데이트
-          payroll = await prisma.payroll.update({
-            where: { id: existingPayroll.id },
+        const existingPayrollId = existingPayrollMap.get(worker.id)
+        if (existingPayrollId) {
+          payrollsToUpdate.push({
+            id: existingPayrollId,
             data: payrollPayload,
+            workerId: worker.id,
+            workerName: worker.name,
           })
         } else {
-          // 신규 생성
-          payroll = await prisma.payroll.create({
+          payrollsToCreate.push({
             data: payrollPayload,
+            workerId: worker.id,
+            workerName: worker.name,
           })
         }
-
-        results.push({
-          payrollId: payroll.id,
-          workerId: worker.id,
-          workerName: worker.name,
-          totalPay: payroll.totalPay,
-          netPay: payroll.netPay,
-          status: existingPayroll ? 'updated' : 'created',
-        })
       } catch (error) {
         errors.push({
           workerId: worker.id,
@@ -157,6 +188,64 @@ export async function POST(request: Request) {
           error: error instanceof Error ? error.message : '급여 계산 중 오류 발생',
         })
       }
+    }
+
+    // 트랜잭션으로 배치 처리 (원자성 보장)
+    try {
+      await prisma.$transaction(async (tx) => {
+        // 업데이트는 순차적으로 (unique constraint 때문에 병렬 불가)
+        for (const item of payrollsToUpdate) {
+          const payroll = await tx.payroll.update({
+            where: { id: item.id },
+            data: item.data,
+          })
+          results.push({
+            payrollId: payroll.id,
+            workerId: item.workerId,
+            workerName: item.workerName,
+            totalPay: payroll.totalPay,
+            netPay: payroll.netPay,
+            status: 'updated' as const,
+          })
+        }
+
+        // 신규 생성은 createMany로 배치 처리
+        if (payrollsToCreate.length > 0) {
+          await tx.payroll.createMany({
+            data: payrollsToCreate.map((item) => item.data),
+          })
+
+          // createMany는 생성된 레코드를 반환하지 않으므로 다시 조회
+          const createdPayrolls = await tx.payroll.findMany({
+            where: {
+              siteId,
+              year,
+              month,
+              workerId: { in: payrollsToCreate.map((p) => p.workerId) },
+            },
+          })
+
+          createdPayrolls.forEach((payroll) => {
+            const item = payrollsToCreate.find((p) => p.workerId === payroll.workerId)
+            if (item) {
+              results.push({
+                payrollId: payroll.id,
+                workerId: item.workerId,
+                workerName: item.workerName,
+                totalPay: payroll.totalPay,
+                netPay: payroll.netPay,
+                status: 'created' as const,
+              })
+            }
+          })
+        }
+      })
+    } catch (error) {
+      console.error('Transaction error:', error)
+      return NextResponse.json(
+        { error: '급여 저장 중 오류가 발생했습니다.' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json(

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useAppStore } from '@/lib/store'
 import Button from '@/app/components/ui/Button'
 import type { Worker } from '@prisma/client'
@@ -15,7 +15,7 @@ const WorkerList: React.FC<WorkerListProps> = ({ onEdit }) => {
   const [loading, setLoading] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
-  const fetchWorkers = async () => {
+  const fetchWorkers = useCallback(async () => {
     if (!selectedSite) return
     setLoading(true)
     try {
@@ -29,12 +29,10 @@ const WorkerList: React.FC<WorkerListProps> = ({ onEdit }) => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedSite])
 
+  // 현재 사용자 정보 가져오기
   useEffect(() => {
-    fetchWorkers()
-
-    // Phase 5: 현재 사용자 정보 가져오기
     const fetchCurrentUser = async () => {
       const { createSupabaseClient } = await import('@/lib/supabase/client')
       const supabase = createSupabaseClient()
@@ -44,16 +42,25 @@ const WorkerList: React.FC<WorkerListProps> = ({ onEdit }) => {
       }
     }
     fetchCurrentUser()
+  }, [])
 
-    // Real-time 업데이트 구독
+  // 초기 데이터 로드
+  useEffect(() => {
+    fetchWorkers()
+  }, [fetchWorkers])
+
+  // Real-time 업데이트 구독
+  useEffect(() => {
     if (!selectedSite) return
+
+    let channel: any = null
 
     const setupRealtimeSubscription = async () => {
       const { createSupabaseClient } = await import('@/lib/supabase/client')
       const supabase = createSupabaseClient()
 
-      const channel = supabase
-        .channel('workers-changes')
+      channel = supabase
+        .channel(`workers-changes-${selectedSite.id}`)
         .on(
           'postgres_changes',
           {
@@ -69,18 +76,16 @@ const WorkerList: React.FC<WorkerListProps> = ({ onEdit }) => {
           }
         )
         .subscribe()
+    }
 
-      return () => {
+    setupRealtimeSubscription()
+
+    return () => {
+      if (channel) {
         channel.unsubscribe()
       }
     }
-
-    const cleanup = setupRealtimeSubscription()
-
-    return () => {
-      cleanup.then(unsubscribe => unsubscribe?.())
-    }
-  }, [selectedSite])
+  }, [selectedSite, fetchWorkers])
 
   if (!selectedSite) {
     return (
