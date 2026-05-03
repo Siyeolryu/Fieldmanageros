@@ -68,19 +68,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Debugging log for email confirmation status
+    console.log('Signup result:', {
+      hasUser: !!signUpData.user,
+      hasSession: !!signUpData.session,
+      userId: signUpData.user?.id,
+      userEmail: signUpData.user?.email,
+      emailConfirmationSent: signUpData.user && !signUpData.session,
+      timestamp: new Date().toISOString(),
+    })
+
     // Check if email confirmation is required
     if (signUpData.user && !signUpData.session) {
       // Email confirmation is required
+      console.log('Email confirmation required for:', signUpData.user.email)
       return NextResponse.json({
         success: true,
         user: signUpData.user,
         message: '가입이 완료되었습니다. 이메일을 확인하여 계정을 인증해주세요.',
         requiresEmailConfirmation: true,
+        debugInfo: {
+          emailSent: true,
+          checkSpamFolder: true,
+          note: '이메일이 오지 않으면 스팸 메일함을 확인하거나 5분 후 재전송을 시도해주세요.',
+        },
       })
     }
 
     // If session exists, user is automatically signed in (email confirmation disabled)
     if (signUpData.session) {
+      console.log('User auto-signed in (email confirmation disabled):', signUpData.user.email)
       return NextResponse.json({
         success: true,
         user: signUpData.user,

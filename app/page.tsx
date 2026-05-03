@@ -9,7 +9,7 @@ import { createSupabaseClient } from '@/lib/supabase/client'
 
 export default function LandingPage() {
   const router = useRouter()
-  const { user, setUser } = useAuthStore()
+  const { user, setUser, setGuestMode } = useAuthStore()
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -122,7 +122,6 @@ export default function LandingPage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => {
-                    const { setGuestMode } = useAuthStore.getState()
                     setGuestMode(true)
                     router.push('/home')
                     toast.success('게스트 모드로 입장했습니다. 데이터는 브라우저에만 저장됩니다.')
@@ -133,8 +132,9 @@ export default function LandingPage() {
                 </button>
                 <button
                   onClick={() => {
-                    // 페이지 하단 Quick Signup 섹션으로 스크롤
-                    document.getElementById('quick-signup')?.scrollIntoView({ behavior: 'smooth' })
+                    const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement
+                    emailInput?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    setTimeout(() => emailInput?.focus(), 500)
                   }}
                   className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
                 >
