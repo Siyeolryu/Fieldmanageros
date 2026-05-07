@@ -28,12 +28,20 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   full_name TEXT,
   role TEXT DEFAULT 'manager' CHECK (role IN ('admin', 'manager', 'viewer')),
   avatar_url TEXT,
+  user_type TEXT DEFAULT 'manager' CHECK (user_type IN ('manager', 'both', 'worker')),
+  hourly_rate INTEGER,
+  bank_name TEXT,
+  bank_account TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 COMMENT ON TABLE public.profiles IS '사용자 프로필 (Supabase Auth 확장)';
 COMMENT ON COLUMN public.profiles.role IS 'admin: 관리자, manager: 현장소장, viewer: 조회자';
+COMMENT ON COLUMN public.profiles.user_type IS 'manager: 관리자만, both: 관리자+근로자, worker: 근로자만';
+COMMENT ON COLUMN public.profiles.hourly_rate IS '시급 (원) - user_type이 both 또는 worker일 때만 사용';
+COMMENT ON COLUMN public.profiles.bank_name IS '은행명 - 급여 입금용';
+COMMENT ON COLUMN public.profiles.bank_account IS '계좌번호 - 급여 입금용';
 
 -- ════════ Companies (건설사) ════════
 
@@ -79,6 +87,8 @@ CREATE TABLE IF NOT EXISTS public.workers (
   bank_name TEXT,
   bank_account TEXT,
   hourly_rate INTEGER NOT NULL,
+  profile_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  is_owner BOOLEAN DEFAULT FALSE,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -87,6 +97,8 @@ CREATE TABLE IF NOT EXISTS public.workers (
 COMMENT ON TABLE public.workers IS '일용직 근로자';
 COMMENT ON COLUMN public.workers.hourly_rate IS '시급 (원 단위)';
 COMMENT ON COLUMN public.workers.id_number IS '주민등록번호 - 반드시 암호화 저장 권장';
+COMMENT ON COLUMN public.workers.profile_id IS '프로필 연결 - 관리자가 본인을 근로자로 등록할 때 사용 (Phase 2)';
+COMMENT ON COLUMN public.workers.is_owner IS '현장 소유자 여부 - 세금 처리용 (Phase 2)';
 
 -- ════════ Attendance (출근 기록) ════════
 
@@ -138,6 +150,28 @@ COMMENT ON COLUMN public.payroll.base_pay IS '기본급 (시급 × 근무시간)
 COMMENT ON COLUMN public.payroll.weekly_holiday_pay IS '주휴수당 (8일 카운팅 기반)';
 COMMENT ON COLUMN public.payroll.net_pay IS '실수령액 (총 지급액 - 총 공제액)';
 
+-- ════════ CorrectionRequest (출근 기록 수정 요청) ════════
+
+CREATE TABLE IF NOT EXISTS public.correction_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  attendance_id UUID NOT NULL REFERENCES public.attendance(id) ON DELETE CASCADE,
+  requested_by UUID NOT NULL REFERENCES public.profiles(id),
+  requested_hours NUMERIC(4, 1),
+  requested_notes TEXT,
+  reason TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  reviewed_by UUID REFERENCES public.profiles(id),
+  reviewed_at TIMESTAMPTZ,
+  review_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE public.correction_requests IS '출근 기록 수정 요청 테이블';
+COMMENT ON COLUMN public.correction_requests.status IS 'pending: 대기, approved: 승인, rejected: 거부';
+COMMENT ON COLUMN public.correction_requests.requested_hours IS '수정 요청 근무 시간';
+COMMENT ON COLUMN public.correction_requests.reason IS '수정 요청 사유';
+
 -- ════════ Indexes (성능 최적화) ════════
 
 CREATE INDEX IF NOT EXISTS idx_companies_owner ON public.companies(owner_id);
@@ -145,11 +179,15 @@ CREATE INDEX IF NOT EXISTS idx_sites_company ON public.sites(company_id);
 CREATE INDEX IF NOT EXISTS idx_sites_active ON public.sites(is_active);
 CREATE INDEX IF NOT EXISTS idx_workers_site ON public.workers(site_id);
 CREATE INDEX IF NOT EXISTS idx_workers_active ON public.workers(is_active);
+CREATE INDEX IF NOT EXISTS idx_workers_profile_id ON public.workers(profile_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_worker ON public.attendance(worker_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_site ON public.attendance(site_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_date ON public.attendance(date);
 CREATE INDEX IF NOT EXISTS idx_payroll_worker ON public.payroll(worker_id);
 CREATE INDEX IF NOT EXISTS idx_payroll_period ON public.payroll(year, month);
+CREATE INDEX IF NOT EXISTS idx_correction_requests_attendance ON public.correction_requests(attendance_id);
+CREATE INDEX IF NOT EXISTS idx_correction_requests_status ON public.correction_requests(status);
+CREATE INDEX IF NOT EXISTS idx_correction_requests_requester ON public.correction_requests(requested_by);
 
 -- ════════ Updated_at Trigger ════════
 
@@ -185,6 +223,10 @@ DROP TRIGGER IF EXISTS update_payroll_updated_at ON public.payroll;
 CREATE TRIGGER update_payroll_updated_at BEFORE UPDATE ON public.payroll
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_correction_requests_updated_at ON public.correction_requests;
+CREATE TRIGGER update_correction_requests_updated_at BEFORE UPDATE ON public.correction_requests
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- ════════════════════════════════════════
 -- 2단계: Row Level Security (RLS) 정책
 -- ════════════════════════════════════════
@@ -195,6 +237,7 @@ ALTER TABLE public.sites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payroll ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.correction_requests ENABLE ROW LEVEL SECURITY;
 
 -- Profiles Policies
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
@@ -400,6 +443,56 @@ CREATE POLICY "Users can delete payroll of own sites"
   USING (
     site_id IN (
       SELECT s.id FROM public.sites s
+      JOIN public.companies c ON s.company_id = c.id
+      WHERE c.owner_id = auth.uid()
+    )
+  );
+
+-- CorrectionRequest Policies
+DROP POLICY IF EXISTS "Users can view correction requests of own sites" ON public.correction_requests;
+CREATE POLICY "Users can view correction requests of own sites"
+  ON public.correction_requests FOR SELECT
+  USING (
+    attendance_id IN (
+      SELECT a.id FROM public.attendance a
+      JOIN public.sites s ON a.site_id = s.id
+      JOIN public.companies c ON s.company_id = c.id
+      WHERE c.owner_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "Users can insert correction requests for own sites" ON public.correction_requests;
+CREATE POLICY "Users can insert correction requests for own sites"
+  ON public.correction_requests FOR INSERT
+  WITH CHECK (
+    attendance_id IN (
+      SELECT a.id FROM public.attendance a
+      JOIN public.sites s ON a.site_id = s.id
+      JOIN public.companies c ON s.company_id = c.id
+      WHERE c.owner_id = auth.uid()
+    )
+    AND requested_by = auth.uid()
+  );
+
+DROP POLICY IF EXISTS "Users can update correction requests of own sites" ON public.correction_requests;
+CREATE POLICY "Users can update correction requests of own sites"
+  ON public.correction_requests FOR UPDATE
+  USING (
+    attendance_id IN (
+      SELECT a.id FROM public.attendance a
+      JOIN public.sites s ON a.site_id = s.id
+      JOIN public.companies c ON s.company_id = c.id
+      WHERE c.owner_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "Users can delete correction requests of own sites" ON public.correction_requests;
+CREATE POLICY "Users can delete correction requests of own sites"
+  ON public.correction_requests FOR DELETE
+  USING (
+    attendance_id IN (
+      SELECT a.id FROM public.attendance a
+      JOIN public.sites s ON a.site_id = s.id
       JOIN public.companies c ON s.company_id = c.id
       WHERE c.owner_id = auth.uid()
     )

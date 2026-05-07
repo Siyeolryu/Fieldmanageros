@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +29,9 @@ export async function POST(request: NextRequest) {
     // Generate a temporary password
     const tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12)
 
-    // Sign up the user with Supabase
+    console.log('[Quick Signup] Starting signup for:', email)
+
+    // Sign up the user with Supabase Auth
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password: tempPassword,
@@ -38,14 +43,11 @@ export async function POST(request: NextRequest) {
           signup_timestamp: new Date().toISOString(),
         },
         emailRedirectTo: `${request.nextUrl.origin}/auth/callback`,
-        // Custom email template data
-        // Note: Email templates are configured in Supabase Dashboard
-        // This metadata can be used in email templates
       },
     })
 
     if (signUpError) {
-      console.error('Signup error:', signUpError)
+      console.error('[Quick Signup] Auth error:', signUpError)
 
       // Check for specific error types
       if (signUpError.message.includes('already registered')) {
@@ -62,14 +64,52 @@ export async function POST(request: NextRequest) {
     }
 
     if (!signUpData.user) {
+      console.error('[Quick Signup] No user returned from signUp')
       return NextResponse.json(
         { error: '회원가입에 실패했습니다' },
         { status: 500 }
       )
     }
 
+    console.log('[Quick Signup] Auth user created:', {
+      userId: signUpData.user.id,
+      email: signUpData.user.email,
+    })
+
+    // ========================================
+    // MANUAL PROFILE CREATION (트리거 우회)
+    // ========================================
+    try {
+      console.log('[Quick Signup] Creating profile for user:', signUpData.user.id)
+
+      // Check if profile already exists
+      const existingProfile = await prisma.profile.findUnique({
+        where: { id: signUpData.user.id },
+      })
+
+      if (existingProfile) {
+        console.log('[Quick Signup] Profile already exists:', existingProfile.id)
+      } else {
+        // Create profile manually
+        const newProfile = await prisma.profile.create({
+          data: {
+            id: signUpData.user.id,
+            email: signUpData.user.email!,
+            role: 'manager',
+            userType: 'manager',
+          },
+        })
+        console.log('[Quick Signup] Profile created successfully:', newProfile.id)
+      }
+    } catch (profileError: any) {
+      console.error('[Quick Signup] Profile creation error:', profileError)
+
+      // Don't fail the whole signup - Profile can be created later
+      console.warn('[Quick Signup] Continuing without profile (will be created on first login)')
+    }
+
     // Debugging log for email confirmation status
-    console.log('Signup result:', {
+    console.log('[Quick Signup] Signup result:', {
       hasUser: !!signUpData.user,
       hasSession: !!signUpData.session,
       userId: signUpData.user?.id,
@@ -81,7 +121,7 @@ export async function POST(request: NextRequest) {
     // Check if email confirmation is required
     if (signUpData.user && !signUpData.session) {
       // Email confirmation is required
-      console.log('Email confirmation required for:', signUpData.user.email)
+      console.log('[Quick Signup] Email confirmation required for:', signUpData.user.email)
       return NextResponse.json({
         success: true,
         user: signUpData.user,
@@ -90,14 +130,14 @@ export async function POST(request: NextRequest) {
         debugInfo: {
           emailSent: true,
           checkSpamFolder: true,
-          note: '이메일이 오지 않으면 스팸 메일함을 확인하거나 5분 후 재전송을 시도해주세요.',
+          note: '이메일이 오지 않으면 스팸 메일함을 확인하거나 재전송을 시도해주세요.',
         },
       })
     }
 
     // If session exists, user is automatically signed in (email confirmation disabled)
     if (signUpData.session) {
-      console.log('User auto-signed in (email confirmation disabled):', signUpData.user.email)
+      console.log('[Quick Signup] User auto-signed in (email confirmation disabled):', signUpData.user.email)
       return NextResponse.json({
         success: true,
         user: signUpData.user,
@@ -113,7 +153,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (signInError) {
-      console.error('Auto sign-in error:', signInError)
+      console.error('[Quick Signup] Auto sign-in error:', signInError)
       return NextResponse.json({
         success: true,
         user: signUpData.user,
@@ -129,10 +169,12 @@ export async function POST(request: NextRequest) {
       autoSignedIn: true,
     })
   } catch (error) {
-    console.error('Quick signup error:', error)
+    console.error('[Quick Signup] Unexpected error:', error)
     return NextResponse.json(
       { error: '서버 오류가 발생했습니다' },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 }
