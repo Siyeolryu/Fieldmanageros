@@ -169,7 +169,7 @@ export default function CompaniesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           {companies.map(company => (
-            <CompanyCard key={company.id} company={company as Record<string, unknown>} />
+            <CompanyCard key={company.id} company={company as any} />
           ))}
         </div>
       )}

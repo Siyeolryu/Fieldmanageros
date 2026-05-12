@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/store'
@@ -36,7 +36,7 @@ export default function ProfilePage() {
         return
       }
 
-      setUserState(authUser as Record<string, unknown>)
+      setUserState(authUser as any)
 
       // 프로필 정보 로드
       const { data: profile } = await supabase

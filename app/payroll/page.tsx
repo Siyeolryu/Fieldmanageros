@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAppStore, useAuthStore } from '@/lib/store'
 import SiteSelector from '@/app/components/ui/SiteSelector'
 import Button from '@/app/components/ui/Button'
@@ -73,9 +74,10 @@ export default function PayrollPage() {
     XLSX.writeFile(wb, `${siteName}_노임대장_${y}_${m}.xlsx`)
   }
 
+  const router = useRouter()
   const { selectedSite } = useAppStore()
   const { user } = useAuthStore()
-  
+
   const [year, setYear] = useState(new Date().getFullYear())
   const [month, setMonth] = useState(new Date().getMonth() + 1)
   const [payrolls, setPayrolls] = useState<PayrollRecord[]>([])
@@ -112,7 +114,7 @@ export default function PayrollPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [router, selectedSite, selectedYear, selectedMonth, year, month])
+  }, [selectedSite, year, month])
 
   useEffect(() => {
     fetchPayrolls()

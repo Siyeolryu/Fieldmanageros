@@ -53,7 +53,7 @@ const WorkerList: React.FC<WorkerListProps> = ({ onEdit }) => {
   useEffect(() => {
     if (!selectedSite) return
 
-    let channel: unknown = null
+    let channel: any = null
 
     const setupRealtimeSubscription = async () => {
       const { createSupabaseClient } = await import('@/lib/supabase/client')

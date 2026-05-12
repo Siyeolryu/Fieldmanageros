@@ -223,7 +223,7 @@ const CalendarView: React.FC = () => {
                       size="sm"
                       className="h-8 min-h-0 text-xs"
                       onClick={() => {
-                        setSelectedAttendance(record as Record<string, unknown>)
+                        setSelectedAttendance(record as any)
                         setIsSheetOpen(false)
                         setIsDetailModalOpen(true)
                       }}
@@ -291,7 +291,7 @@ const CalendarView: React.FC = () => {
           title="일괄 출근 등록"
         >
           <BulkAttendanceForm
-            workers={workers as Record<string, unknown>[]}
+            workers={workers as any[]}
             date={selectedDate}
             siteId={selectedSite?.id || ''}
             currentUserId={currentUserId}
@@ -311,7 +311,7 @@ const CalendarView: React.FC = () => {
           title="개별 출근 등록"
         >
           <AttendanceForm
-            workers={workers as Record<string, unknown>[]}
+            workers={workers as any[]}
             date={selectedDate}
             onSuccess={() => {
               setIsIndividualModalOpen(false)

@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { calculateMonthlyPayroll } from '@/lib/payroll/calculator'
 import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
+import type { Prisma } from '@prisma/client'
 
 // 급여 생성 요청 스키마
 const generateSchema = z.object({
@@ -105,13 +106,13 @@ export async function POST(request: Request) {
       error: string
     }> = []
     const payrollsToCreate: Array<{
-      data: Record<string, unknown>
+      data: Prisma.PayrollCreateManyInput
       workerId: string
       workerName: string
     }> = []
     const payrollsToUpdate: Array<{
       id: string
-      data: Record<string, unknown>
+      data: Prisma.PayrollUpdateInput
       workerId: string
       workerName: string
     }> = []

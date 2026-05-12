@@ -52,7 +52,13 @@ export async function GET(request: Request) {
     // 파일명
     const filename = `노임대장_업로드서식_${year}년${month}월.xlsx`
 
-    return new NextResponse(excelBuffer as Buffer, {
+    // Blob으로 변환하여 Response 생성
+    // @ts-expect-error - Uint8Array type compatibility with BlobPart
+    const blob = new Blob([excelBuffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
+
+    return new Response(blob, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
