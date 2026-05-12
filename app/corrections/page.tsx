@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore, useAppStore } from '@/lib/store'
 import { toast } from 'sonner'
@@ -47,22 +47,7 @@ export default function CorrectionsPage() {
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [reviewNotes, setReviewNotes] = useState('')
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/')
-      return
-    }
-
-    if (activeRole !== 'manager') {
-      toast.error('관리자 모드에서만 접근 가능합니다')
-      router.push('/home')
-      return
-    }
-
-    fetchRequests()
-  }, [user, activeRole, router, selectedSite, selectedStatus])
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -84,7 +69,22 @@ export default function CorrectionsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedStatus, selectedSite])
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/')
+      return
+    }
+
+    if (activeRole !== 'manager') {
+      toast.error('관리자 모드에서만 접근 가능합니다')
+      router.push('/home')
+      return
+    }
+
+    fetchRequests()
+  }, [user, activeRole, router, fetchRequests])
 
   const handleApprove = async (id: string) => {
     try {

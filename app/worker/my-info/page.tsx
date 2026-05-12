@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import { toast } from 'sonner'
@@ -60,7 +60,7 @@ export default function WorkerMyInfoPage() {
     fetchMyData()
   }, [user, activeRole, router, selectedMonth])
 
-  const fetchMyData = async () => {
+  const fetchMyData = useCallback(async () => {
     setLoading(true)
     try {
       const year = selectedMonth.getFullYear()
@@ -85,7 +85,21 @@ export default function WorkerMyInfoPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router, selectedMonth])
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/home')
+      return
+    }
+
+    if (activeRole === 'manager') {
+      router.push('/home')
+      return
+    }
+
+    fetchMyData()
+  }, [user, activeRole, router, fetchMyData])
 
   const currentPayroll = payrollData[0]
   const totalGongsu = attendanceData.reduce((sum, record) => sum + (record.hoursWorked / 8), 0)

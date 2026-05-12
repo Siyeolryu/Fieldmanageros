@@ -81,7 +81,8 @@ export default function SignupPage() {
     try {
       const supabase = createSupabaseClient()
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider as any,
+        // @ts-expect-error - Supabase doesn't support all OAuth providers in types
+        provider: provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },

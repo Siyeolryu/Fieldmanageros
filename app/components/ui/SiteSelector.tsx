@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useAppStore } from '@/lib/store'
 import type { Site } from '@prisma/client'
 
@@ -7,27 +7,27 @@ const SiteSelector: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const { selectedSite, setSelectedSite } = useAppStore()
 
-  useEffect(() => {
-    const fetchSites = async () => {
-      try {
-        const response = await fetch('/api/sites')
-        if (!response.ok) throw new Error('Failed to fetch sites')
-        const data = await response.json()
-        setSites(data)
-        
-        // 초기 사이트 설정 (이미 선택된 게 없으면 첫 번째 사이트로)
-        if (!selectedSite && data.length > 0) {
-          setSelectedSite(data[0])
-        }
-      } catch (error) {
-        console.error('Error fetching sites:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
+  const fetchSites = useCallback(async () => {
+    try {
+      const response = await fetch('/api/sites')
+      if (!response.ok) throw new Error('Failed to fetch sites')
+      const data = await response.json()
+      setSites(data)
 
+      // 초기 사이트 설정 (이미 선택된 게 없으면 첫 번째 사이트로)
+      if (!selectedSite && data.length > 0) {
+        setSelectedSite(data[0])
+      }
+    } catch (error) {
+      console.error('Error fetching sites:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedSite, setSelectedSite])
+
+  useEffect(() => {
     fetchSites()
-  }, [])
+  }, [fetchSites])
 
   if (loading) {
     return (

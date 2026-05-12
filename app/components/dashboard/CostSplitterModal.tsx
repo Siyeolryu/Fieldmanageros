@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Modal from '@/app/components/ui/Modal'
 import { TAX_RATES, calculateDailyIncomeTax } from '@/lib/payroll'
 import { useAppStore } from '@/lib/store'
@@ -43,19 +43,19 @@ export default function CostSplitterModal({ isOpen, onClose }: CostSplitterModal
     }, [isOpen, selectedSite])
 
     // 역산 알고리즘
-    const calculateScenarios = () => {
+    const calculateScenarios = useCallback(() => {
         if (workers.length === 0 || targetBudget <= 0) return
 
         const n = workers.length
         const targetPerWorker = targetBudget / n
-        
+
         const newProposals: WorkerProposal[] = workers.map(worker => {
             // 1. 단가 우선 결정 (기본 20만원, 최대 30만원)
             let dailyRate = Math.min(Math.max(worker.hourlyRate * 8, 150000), 300000)
-            
+
             // 2. 일수 계산
             let days = Math.round((targetPerWorker / dailyRate) * 2) / 2 // 0.5공수 단위
-            
+
             // 3. 일수/단가 조정 (일수가 너무 많거나 적으면 단가 조정)
             if (days > 22) {
                 dailyRate = Math.min(300000, Math.ceil((targetPerWorker / 22) / 1000) * 1000)
@@ -67,10 +67,10 @@ export default function CostSplitterModal({ isOpen, onClose }: CostSplitterModal
 
             // 4. 세금 및 보험료 계산 (표준 요율 준수)
             const totalPay = dailyRate * days
-            
+
             // 고용보험 (0.9%)
             const employmentInsurance = Math.floor(totalPay * TAX_RATES.EMPLOYMENT_INSURANCE / 10) * 10
-            
+
             // 4대 보험 (8일 이상일 때만 건강/국민)
             let healthInsurance = 0
             let pensionInsurance = 0
@@ -87,7 +87,7 @@ export default function CostSplitterModal({ isOpen, onClose }: CostSplitterModal
             const incomeTax = incomeTaxBase + localTax
 
             const deductions = healthInsurance + pensionInsurance + employmentInsurance + incomeTax
-            
+
             return {
                 id: worker.id,
                 name: worker.name,
@@ -108,10 +108,11 @@ export default function CostSplitterModal({ isOpen, onClose }: CostSplitterModal
         }
 
         setProposals(newProposals)
-    }
+    }, [workers, targetBudget])
 
     useEffect(() => {
         calculateScenarios()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workers, targetBudget])
 
     return (

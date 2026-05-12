@@ -19,7 +19,12 @@ const BottomSheet: React.FC<BottomSheetProps> = ({
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
     } else {

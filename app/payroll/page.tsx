@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAppStore, useAuthStore } from '@/lib/store'
 import SiteSelector from '@/app/components/ui/SiteSelector'
 import Button from '@/app/components/ui/Button'
@@ -92,7 +92,7 @@ export default function PayrollPage() {
   // Excel 업로드 모달용 상태
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
 
-  const fetchPayrolls = async () => {
+  const fetchPayrolls = useCallback(async () => {
     if (!selectedSite) return
     setIsLoading(true)
     try {
@@ -112,11 +112,11 @@ export default function PayrollPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [router, selectedSite, selectedYear, selectedMonth, year, month])
 
   useEffect(() => {
     fetchPayrolls()
-  }, [selectedSite, year, month])
+  }, [fetchPayrolls])
 
   const handleRecommendWeeklyHoliday = () => {
     const newMap = { ...weeklyHolidayMap }

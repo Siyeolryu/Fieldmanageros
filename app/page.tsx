@@ -12,6 +12,7 @@ export default function LandingPage() {
   const { user, setUser, setGuestMode } = useAuthStore()
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isGuestLoading, setIsGuestLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export default function LandingPage() {
     try {
       const supabase = createSupabaseClient()
       const { error } = await supabase.auth.signInWithOAuth({
-        // @ts-ignore - Supabase doesn't support naver provider type
+        // @ts-expect-error - Supabase doesn't support naver provider type
         provider: provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -122,19 +123,26 @@ export default function LandingPage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => {
+                    setIsGuestLoading(true)
                     setGuestMode(true)
                     router.push('/home')
                     toast.success('게스트 모드로 입장했습니다. 데이터는 브라우저에만 저장됩니다.')
                   }}
-                  className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                  disabled={isGuestLoading}
+                  className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-wait flex items-center gap-2"
                 >
-                  둘러보기
+                  {isGuestLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                      입장 중...
+                    </>
+                  ) : (
+                    '둘러보기'
+                  )}
                 </button>
                 <button
                   onClick={() => {
-                    const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement
-                    emailInput?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                    setTimeout(() => emailInput?.focus(), 500)
+                    router.push('/auth/signup')
                   }}
                   className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
                 >

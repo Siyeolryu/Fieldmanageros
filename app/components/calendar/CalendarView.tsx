@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   startOfMonth,
   endOfMonth,
@@ -70,12 +70,12 @@ const CalendarView: React.FC = () => {
   }, [])
 
   // 데이터 로딩 로직 (함수로 분리하여 새로고침 가능하게 함)
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!selectedSite) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // 1. 해당 현장의 근로자 정보 가져오기
       const workersRes = await fetch(`/api/workers?siteId=${selectedSite.id}`);
@@ -98,11 +98,11 @@ const CalendarView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedSite, currentMonth, setIsLoading, setError, setAttendanceRecords]);
 
   useEffect(() => {
     fetchData();
-  }, [selectedSite, currentMonth])
+  }, [fetchData])
 
   // 달력 날짜 계산 로직
   const monthStart = startOfMonth(currentMonth)
@@ -223,7 +223,7 @@ const CalendarView: React.FC = () => {
                       size="sm"
                       className="h-8 min-h-0 text-xs"
                       onClick={() => {
-                        setSelectedAttendance(record as any)
+                        setSelectedAttendance(record as Record<string, unknown>)
                         setIsSheetOpen(false)
                         setIsDetailModalOpen(true)
                       }}
@@ -291,7 +291,7 @@ const CalendarView: React.FC = () => {
           title="일괄 출근 등록"
         >
           <BulkAttendanceForm
-            workers={workers as any}
+            workers={workers as Record<string, unknown>[]}
             date={selectedDate}
             siteId={selectedSite?.id || ''}
             currentUserId={currentUserId}
@@ -311,7 +311,7 @@ const CalendarView: React.FC = () => {
           title="개별 출근 등록"
         >
           <AttendanceForm
-            workers={workers as any}
+            workers={workers as Record<string, unknown>[]}
             date={selectedDate}
             onSuccess={() => {
               setIsIndividualModalOpen(false)

@@ -105,13 +105,13 @@ export async function POST(request: Request) {
       error: string
     }> = []
     const payrollsToCreate: Array<{
-      data: any
+      data: Record<string, unknown>
       workerId: string
       workerName: string
     }> = []
     const payrollsToUpdate: Array<{
       id: string
-      data: any
+      data: Record<string, unknown>
       workerId: string
       workerName: string
     }> = []

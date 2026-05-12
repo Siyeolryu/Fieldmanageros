@@ -1,3 +1,9 @@
+시열님, Antigravity(Claude 기반의 AI 코딩 환경)를 활용해 개발할 때 가장 중요한 건 **AI가 길을 잃지 않게 만드는 가이드라인**입니다.
+
+AI는 문맥이 일관될수록 압도적인 성능을 냅니다. 오늘 MVP 제작부터 앞으로의 확장을 위해, AI에게 가장 먼저 던져줄 **`rules.md`** 파일을 작성해 드립니다.
+
+---
+
 # 📜 Construction PM's Tool: Development Rules
 
 이 규칙은 AI(Cursor/Claude)가 코드를 짤 때 반드시 지켜야 할 원칙입니다. 프로젝트 최상위에 `rules.md`로 저장하거나 프롬프트 상단에 붙여넣으세요.
@@ -11,8 +17,7 @@
 * **Frontend:** Pure HTML5, CSS3, Vanilla JavaScript (No Framework).
 * **Styling:** 외부 라이브러리 최소화. 필요시 Tailwind CSS CDN 활용.
 * **State Management:** 초기 단계는 `localStorage`를 메인 DB로 사용.
-* **File Structure:**
-  * MVP 단계: `index.html` 단일 파일.
+* **File Structure:** * MVP 단계: `index.html` 단일 파일.
   * 확장 단계: `/css`, `/js`, `/components`로 분리.
 
 ## 3. Coding Standards (코드 표준)
@@ -22,8 +27,7 @@
 * **Error Handling:** 데이터가 비어있거나 잘못된 값이 들어올 경우 `alert` 대신 UI 내에서 부드러운 메시지 표시.
 
 ## 4. UI/UX Detail (디자인 디테일)
-* **Color Palette:**
-  * 메인 액션: `Blue (#007bff)`
+* **Color Palette:** * 메인 액션: `Blue (#007bff)`
   * 성공/추가: `Green (#28a745)`
   * 주의/금액: `Red (#d9534f)`
   * 배경: `Light Gray (#f4f4f9)`
@@ -35,8 +39,11 @@
 
 ---
 
-## 💡 Antigravity 시작을 위한 다음 단계
+### 💡 Antigravity 시작을 위한 다음 단계
 
 이제 Antigravity 환경(Cursor 등)을 켜시고, 채팅창에 이렇게 입력하며 시작하세요.
 
 > **"방금 작성한 `rules.md` 파일 내용을 확인해 줘. 이 규칙을 바탕으로 오늘 우리 목표인 '노무비 정산 MVP' 개발을 시작하자. 첫 번째로 인력 등록과 오늘 날짜 출근 체크가 가능한 단일 index.html 코드를 짜줘."**
+
+
+**코드 작성이 시작되면, 제가 특정 기능을 더 정교하게 다듬는 법(예: 금액 단위 콤마 처리 등)을 도와드릴까요?**

@@ -24,11 +24,7 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  useEffect(() => {
-    loadProfile()
-  }, [])
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       const supabase = createSupabaseClient()
       const {
@@ -40,7 +36,7 @@ export default function ProfilePage() {
         return
       }
 
-      setUserState(authUser as any)
+      setUserState(authUser as Record<string, unknown>)
 
       // 프로필 정보 로드
       const { data: profile } = await supabase
@@ -67,7 +63,11 @@ export default function ProfilePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router, setUser])
+
+  useEffect(() => {
+    loadProfile()
+  }, [loadProfile])
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import SiteCard from '../components/sites/SiteCard'
@@ -56,7 +56,7 @@ export default function SitesPage() {
     setupRealtimeSubscription()
   }, [])
 
-  const fetchSites = async () => {
+  const fetchSites = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
@@ -80,7 +80,11 @@ export default function SitesPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    fetchSites()
+  }, [fetchSites])
 
   if (isLoading) {
     return (

@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
         })
         console.log('[Quick Signup] Profile created successfully:', newProfile.id)
       }
-    } catch (profileError: any) {
+    } catch (profileError: unknown) {
       console.error('[Quick Signup] Profile creation error:', profileError)
 
       // Don't fail the whole signup - Profile can be created later

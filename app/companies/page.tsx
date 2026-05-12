@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import CompanyCard from '../components/companies/CompanyCard'
@@ -24,6 +24,32 @@ export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const fetchCompanies = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      const res = await fetch('/api/companies')
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          router.push('/auth/login')
+          return
+        }
+        throw new Error('건설사 목록을 불러오는데 실패했습니다.')
+      }
+
+      const data = await res.json()
+      setCompanies(data)
+    } catch (err: unknown) {
+      console.error('Error fetching companies:', err)
+      const message = err instanceof Error ? err.message : '건설사 목록을 불러오는 중 오류가 발생했습니다.'
+      setError(message)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [router])
 
   useEffect(() => {
     fetchCompanies()
@@ -56,33 +82,7 @@ export default function CompaniesPage() {
     }
 
     setupRealtimeSubscription()
-  }, [])
-
-  const fetchCompanies = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      const res = await fetch('/api/companies')
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          router.push('/auth/login')
-          return
-        }
-        throw new Error('건설사 목록을 불러오는데 실패했습니다.')
-      }
-
-      const data = await res.json()
-      setCompanies(data)
-    } catch (err: unknown) {
-      console.error('Error fetching companies:', err)
-      const message = err instanceof Error ? err.message : '건설사 목록을 불러오는 중 오류가 발생했습니다.'
-      setError(message)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  }, [fetchCompanies])
 
   if (isLoading) {
     return (
@@ -169,7 +169,7 @@ export default function CompaniesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           {companies.map(company => (
-            <CompanyCard key={company.id} company={company as any} />
+            <CompanyCard key={company.id} company={company as Record<string, unknown>} />
           ))}
         </div>
       )}

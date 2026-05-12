@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import CalendarView from '@/app/components/calendar/CalendarView'
@@ -47,7 +47,7 @@ export default function HomePage() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [showGuestMigration, setShowGuestMigration] = useState(false)
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     if (!selectedSite) return
     setIsLoading(true)
     try {
@@ -61,11 +61,11 @@ export default function HomePage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [router, selectedSite])
 
   useEffect(() => {
     fetchStats()
-  }, [selectedSite])
+  }, [fetchStats])
 
   // Detect guest data after login
   useEffect(() => {

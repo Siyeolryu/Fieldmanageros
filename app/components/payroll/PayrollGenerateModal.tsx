@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Modal from '../ui/Modal'
 import Button from '../ui/Button'
 
@@ -30,13 +30,7 @@ export default function PayrollGenerateModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    if (isOpen && siteId) {
-      fetchWorkers()
-    }
-  }, [isOpen, siteId])
-
-  const fetchWorkers = async () => {
+  const fetchWorkers = useCallback(async () => {
     try {
       const res = await fetch(`/api/workers?siteId=${siteId}`)
       if (res.ok) {
@@ -46,7 +40,13 @@ export default function PayrollGenerateModal({
     } catch (err) {
       console.error('Failed to fetch workers:', err)
     }
-  }
+  }, [siteId])
+
+  useEffect(() => {
+    if (isOpen && siteId) {
+      fetchWorkers()
+    }
+  }, [isOpen, siteId, fetchWorkers])
 
   const handleGenerate = async () => {
     if (!selectedWorkerId) {
